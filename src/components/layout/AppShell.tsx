@@ -6,6 +6,7 @@ import EditorPane from '../editor/EditorPane';
 import PropertiesPanel from '../properties/PropertiesPanel';
 import TimelineView from '../timeline/TimelineView';
 import StatusBar from './StatusBar';
+import CommitDrawer from '../git/CommitDrawer';
 import styles from './AppShell.module.css';
 import clsx from 'clsx';
 
@@ -36,6 +37,7 @@ export default function AppShell() {
           <PropertiesPanel />
         </div>
       </div>
+      <CommitDrawer />
       <StatusBar />
     </div>
   );

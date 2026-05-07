@@ -11,6 +11,7 @@ import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
+import EntityHistory from './EntityHistory';
 import styles from './PropertiesPanel.module.css';
 import type { FieldDefinition, RelationKind } from '../../types';
 
@@ -427,6 +428,8 @@ export default function PropertiesPanel() {
                   </div>
                 </div>
               </section>
+
+              <EntityHistory entityPath={entity.path} />
             </>
           ) : (
             <div className={styles.emptyState}>

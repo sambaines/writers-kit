@@ -93,6 +93,24 @@ export interface VaultConfig {
   activeCalendarId?: string;
 }
 
+/* ─── Git Types ─────────────────────────────────────────── */
+
+export type GitFileStatusKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
+export type GitRepoStatus = 'no-repo' | 'clean' | 'dirty';
+
+export interface GitFileStatus {
+  path: string;
+  status: GitFileStatusKind;
+}
+
+export interface GitCommit {
+  hash: string;
+  short_hash: string;
+  message: string;
+  author: string;
+  timestamp: number; // unix seconds
+}
+
 /* ─── Calendar Types ────────────────────────────────────── */
 
 export interface CalendarMonth {

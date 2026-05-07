@@ -1,6 +1,11 @@
-import { GitBranch, CheckCircle, FloppyDisk, Warning, Circle } from '@phosphor-icons/react';
+import { useEffect } from 'react';
+import {
+  GitBranch, CheckCircle, FloppyDisk, Warning, Circle, GitCommit,
+  DotOutline,
+} from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData } from '../../store/vault.store';
+import { useGitStore } from '../../store/git.store';
 import { useShallow } from 'zustand/react/shallow';
 import styles from './StatusBar.module.css';
 
@@ -23,9 +28,34 @@ export default function StatusBar() {
     })),
   );
   const { entities, schemas } = useVaultData();
+  const { repoStatus, changedFiles, commitDrawerOpen, setCommitDrawerOpen, refresh } =
+    useGitStore(
+      useShallow((s) => ({
+        repoStatus:          s.repoStatus,
+        changedFiles:        s.changedFiles,
+        commitDrawerOpen:    s.commitDrawerOpen,
+        setCommitDrawerOpen: s.setCommitDrawerOpen,
+        refresh:             s.refresh,
+      })),
+    );
 
   const entity = entities.find((e) => e.id === activeEntityId) ?? null;
   const schema = entity ? schemas.find((s) => s.name === entity.type) : null;
+
+  // Poll git status every 30s when vault is open
+  useEffect(() => {
+    void refresh();
+    const id = setInterval(() => void refresh(), 30_000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  // Also refresh after saves
+  useEffect(() => {
+    if (saveStatus === 'saved') void refresh();
+  }, [saveStatus, refresh]);
+
+  const isDirty = repoStatus === 'dirty';
+  const hasRepo = repoStatus !== 'no-repo';
 
   return (
     <footer className={styles.bar}>
@@ -92,11 +122,56 @@ export default function StatusBar() {
           </>
         )}
 
-        <span className={styles.gitStatus}>
-          <GitBranch size={12} />
-          <CheckCircle size={12} color="var(--color-success)" weight="fill" />
-          <span className={styles.gitLabel}>Clean</span>
-        </span>
+        {/* Git status badge — clickable */}
+        {hasRepo && (
+          <button
+            className={styles.gitStatus}
+            onClick={() => setCommitDrawerOpen(!commitDrawerOpen)}
+            aria-label="Toggle commit drawer"
+            data-dirty={isDirty}
+          >
+            <GitBranch size={12} />
+            {isDirty ? (
+              <>
+                <DotOutline size={14} weight="fill" className={styles.dirtyDot} />
+                <span className={styles.gitLabel} data-dirty="true">
+                  {changedFiles.length} {changedFiles.length === 1 ? 'change' : 'changes'}
+                </span>
+              </>
+            ) : (
+              <>
+                <CheckCircle size={12} color="var(--color-success)" weight="fill" />
+                <span className={styles.gitLabel}>Clean</span>
+              </>
+            )}
+          </button>
+        )}
+
+        {!hasRepo && (
+          <button
+            className={styles.gitStatus}
+            onClick={() => setCommitDrawerOpen(!commitDrawerOpen)}
+            aria-label="Set up git repository"
+          >
+            <GitBranch size={12} />
+            <span className={styles.gitLabelMuted}>No repo</span>
+          </button>
+        )}
+
+        {/* Commit button — always visible when repo exists */}
+        {hasRepo && (
+          <>
+            <span className={styles.statDivider} />
+            <button
+              className={styles.commitBtn}
+              onClick={() => setCommitDrawerOpen(!commitDrawerOpen)}
+              aria-label="Open commit drawer"
+            >
+              <GitCommit size={12} />
+              <span>Commit</span>
+            </button>
+          </>
+        )}
 
         {entity && (
           <>
