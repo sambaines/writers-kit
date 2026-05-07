@@ -14,6 +14,7 @@ import { SignOut } from '@phosphor-icons/react';
 import DynamicIcon from '../ui/DynamicIcon';
 import NewTypeDialog from '../type-editor/NewTypeDialog';
 import EditTypeDialog from '../type-editor/EditTypeDialog';
+import DeleteTypeDialog from '../type-editor/DeleteTypeDialog';
 import type { SchemaDefinition } from '../../types';
 import clsx from 'clsx';
 import styles from './TypeNav.module.css';
@@ -28,12 +29,12 @@ export default function TypeNav() {
   );
 
   const { schemas, entities } = useVaultData();
-  const openVault    = useVaultStore((s) => s.openVault);
-  const closeVault   = useVaultStore((s) => s.closeVault);
-  const deleteSchema = useVaultStore((s) => s.deleteSchema);
+  const openVault  = useVaultStore((s) => s.openVault);
+  const closeVault = useVaultStore((s) => s.closeVault);
 
-  const [newTypeOpen, setNewTypeOpen]           = useState(false);
-  const [editSchema, setEditSchema]             = useState<SchemaDefinition | null>(null);
+  const [newTypeOpen, setNewTypeOpen]     = useState(false);
+  const [editSchema, setEditSchema]       = useState<SchemaDefinition | null>(null);
+  const [deleteTarget, setDeleteTarget]   = useState<SchemaDefinition | null>(null);
 
   async function handleChangeVault() {
     const path = await pickFolder();
@@ -45,13 +46,12 @@ export default function TypeNav() {
     setActiveEntityId(null);
   }
 
-  async function handleDeleteSchema(schema: SchemaDefinition) {
-    if (!confirm(`Delete the "${schema.name}" type? This does not delete existing files of this type.`)) return;
+  function handleDeleteSchema(schema: SchemaDefinition) {
     if (activeTypeId === schema.id) {
       setActiveTypeId('__all');
       setActiveEntityId(null);
     }
-    await deleteSchema(schema);
+    setDeleteTarget(schema);
   }
 
   const allCount     = entities.filter((e) => !e.archived).length;
@@ -233,6 +233,12 @@ export default function TypeNav() {
 
       <NewTypeDialog open={newTypeOpen} onClose={() => setNewTypeOpen(false)} />
       <EditTypeDialog schema={editSchema} onClose={() => setEditSchema(null)} />
+      <DeleteTypeDialog
+        schema={deleteTarget}
+        orphanCount={deleteTarget ? entities.filter((e) => e.type === deleteTarget.name).length : 0}
+        otherSchemas={deleteTarget ? schemas.filter((s) => s.id !== deleteTarget.id) : schemas}
+        onClose={() => setDeleteTarget(null)}
+      />
     </Tooltip.Provider>
   );
 }

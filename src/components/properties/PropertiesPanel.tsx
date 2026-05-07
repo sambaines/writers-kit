@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
+import * as Select from '@radix-ui/react-select';
 import {
   X, Hash, Calendar, Tag, TextT,
   ArrowUpRight, TreeStructure, ArrowsOut,
-  FileText, Clock, PencilLine, Eye,
+  FileText, Clock, PencilLine, Eye, CaretUpDown,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -205,10 +206,36 @@ export default function PropertiesPanel() {
         </button>
       </div>
 
-      {entity && schema && (
+      {entity && (
         <div className={styles.typeBadge}>
-          <DynamicIcon name={schema.icon} size={11} color={schema.color} />
-          <span style={{ color: schema.color }}>{entity.type}</span>
+          <Select.Root
+            value={entity.type}
+            onValueChange={(newType) => void patchEntityFrontmatter(entity, { __type: newType })}
+          >
+            <Select.Trigger asChild>
+              <button className={styles.typeSelect}>
+                {schema && <DynamicIcon name={schema.icon} size={11} color={schema.color} />}
+                <span style={{ color: schema?.color ?? 'var(--text-tertiary)' }}>{entity.type}</span>
+                <CaretUpDown size={10} className={styles.typeSelectCaret} />
+              </button>
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Content className={styles.typeSelectContent} position="popper" sideOffset={4}>
+                <Select.Viewport>
+                  {schemas.map((s) => (
+                    <Select.Item key={s.id} value={s.name} className={styles.typeSelectItem}>
+                      <Select.ItemText>
+                        <span className={styles.typeSelectItemInner}>
+                          <DynamicIcon name={s.icon} size={12} color={s.color} />
+                          <span>{s.name}</span>
+                        </span>
+                      </Select.ItemText>
+                    </Select.Item>
+                  ))}
+                </Select.Viewport>
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>
         </div>
       )}
 

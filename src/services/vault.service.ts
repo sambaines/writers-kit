@@ -391,5 +391,7 @@ export async function updateEntityFrontmatter(
     frontmatter: updatedFm,
     modifiedAt:  now,
     title: (updatedFm.title as string) ?? entity.title,
+    type:  (updatedFm.__type as string) ?? entity.type,
+    archived: (updatedFm.__archived as boolean) ?? entity.archived,
   };
 }

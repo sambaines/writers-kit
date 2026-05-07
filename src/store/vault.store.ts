@@ -39,6 +39,7 @@ interface VaultState {
   deleteSchema: (schema: SchemaDefinition) => Promise<void>;
   createEntity: (type: string, title: string) => Promise<Entity>;
   patchEntityFrontmatter: (entity: Entity, updates: Partial<EntityFrontmatter>) => Promise<Entity>;
+  reassignEntitiesType: (fromType: string, toType: string) => Promise<void>;
 }
 
 export const useVaultStore = create<VaultState>()(
@@ -134,6 +135,18 @@ export const useVaultStore = create<VaultState>()(
         const updated = await updateEntityFrontmatter(vaultPath, entity, updates);
         updateEntity(updated);
         return updated;
+      },
+
+      reassignEntitiesType: async (fromType, toType) => {
+        const { vaultPath, entities, updateEntity } = get();
+        if (!vaultPath) throw new Error('No vault open');
+        const targets = entities.filter((e) => e.type === fromType);
+        await Promise.all(
+          targets.map(async (entity) => {
+            const updated = await updateEntityFrontmatter(vaultPath, entity, { __type: toType });
+            updateEntity(updated);
+          }),
+        );
       },
     }),
     {

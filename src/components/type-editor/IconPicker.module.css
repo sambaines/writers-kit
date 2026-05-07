@@ -20,7 +20,7 @@
 .searchInput {
   width: 100%;
   padding: 5px 8px 5px 26px;
-  background: var(--bg-tertiary);
+  background: var(--bg-overlay);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -65,11 +65,11 @@
 }
 
 .iconBtn:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-overlay);
   color: var(--text-primary);
 }
 
 .iconBtn.active {
-  background: var(--bg-tertiary);
+  background: var(--bg-overlay);
   border-color: var(--accent);
 }
