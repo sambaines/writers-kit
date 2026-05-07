@@ -2,7 +2,7 @@ import matter from 'gray-matter';
 import { writeTextFile } from './fs.service';
 import { useVaultStore } from '../store/vault.store';
 import { useUIStore } from '../store/ui.store';
-import type { Entity } from '../types';
+import type { Entity, EntityFrontmatter } from '../types';
 
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -60,6 +60,54 @@ export async function saveEntity(entity: Entity, newTitle: string, newBody: stri
     console.error('[editor] save failed:', err);
     useUIStore.getState().setSaveStatus('error');
   }
+}
+
+let _rawSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Schedule a debounced save for raw (full-file) content. */
+export function scheduleRawSave(entity: Entity, rawContent: string): void {
+  if (_rawSaveTimer) clearTimeout(_rawSaveTimer);
+  useUIStore.getState().setSaveStatus('unsaved');
+  _rawSaveTimer = setTimeout(() => saveRawContent(entity, rawContent), 1000);
+}
+
+/** Save a full file string (frontmatter + body) as typed in raw mode. */
+export async function saveRawContent(entity: Entity, rawContent: string): Promise<void> {
+  if (_rawSaveTimer) { clearTimeout(_rawSaveTimer); _rawSaveTimer = null; }
+  const { vaultPath, updateEntity } = useVaultStore.getState();
+  if (!vaultPath) return;
+
+  useUIStore.getState().setSaveStatus('saving');
+  try {
+    const fullPath = `${vaultPath}/${entity.path}`;
+    await writeTextFile(fullPath, rawContent);
+
+    // Re-parse so the store reflects any frontmatter edits the user made
+    const { data: fm, content: body } = matter(rawContent);
+    const trimmedBody = body.replace(/^\n/, ''); // gray-matter leaves a leading newline
+    const words = trimmedBody.trim().split(/\s+/).filter(Boolean).length;
+    const updated: Entity = {
+      ...entity,
+      title:      (fm.title      as string)  ?? entity.title,
+      type:       (fm.__type     as string)  ?? entity.type,
+      archived:   (fm.__archived as boolean) ?? entity.archived,
+      frontmatter: fm as EntityFrontmatter,
+      body:       trimmedBody,
+      wordCount:  words,
+      charCount:  trimmedBody.length,
+      modifiedAt: new Date().toISOString(),
+    };
+    updateEntity(updated);
+    useUIStore.getState().setSaveStatus('saved');
+  } catch (err) {
+    console.error('[editor] raw save failed:', err);
+    useUIStore.getState().setSaveStatus('error');
+  }
+}
+
+/** Build the full file string (frontmatter YAML + body) for display in raw mode. */
+export function buildRawContent(entity: Entity, currentBody: string): string {
+  return matter.stringify(currentBody, entity.frontmatter as Record<string, unknown>);
 }
 
 /** Preprocess markdown body so existing [[WikiLinks]] become parseable HTML spans. */

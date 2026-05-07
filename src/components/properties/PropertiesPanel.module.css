@@ -274,37 +274,74 @@
 .relation {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 4px;
   min-height: 26px;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+}
+
+.relation:hover .relRemoveBtn {
+  opacity: 1;
 }
 
 .relKind {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  width: 70px;
-  min-width: 70px;
+  width: 64px;
+  min-width: 64px;
   flex-shrink: 0;
 }
 
 .relLink {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-xs);
-  color: var(--accent-text);
+  color: var(--text-secondary);
   cursor: pointer;
-  padding: 2px var(--space-2);
+  padding: 3px 5px;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  overflow: hidden;
 }
 
 .relLink:hover {
   background: var(--accent-subtle);
+  color: var(--accent-text);
 }
 
-.relType {
+.relLink span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relArrow {
+  flex-shrink: 0;
   color: var(--text-tertiary);
-  padding-left: var(--space-1);
+}
+
+.relRemoveBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.relRemoveBtn:hover {
+  background: rgba(255, 83, 112, 0.12);
+  color: var(--color-error);
 }
 
 .addRelation {
@@ -313,12 +350,15 @@
   gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  padding: var(--space-1) 0;
+  padding: 4px 5px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: color var(--transition-fast);
+  margin-top: 2px;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .addRelation:hover {
+  background: var(--bg-hover);
   color: var(--text-secondary);
 }
 
@@ -431,6 +471,56 @@
   background: var(--bg-overlay);
   border-color: var(--accent);
   color: var(--text-primary);
+}
+
+/* Relation field (schema-defined) */
+.relFieldWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.relChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--accent-text);
+}
+
+.relChipRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0;
+}
+.relChipRemove:hover { opacity: 1; }
+
+.relFieldAdd {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.relFieldAdd:hover {
+  border-color: var(--accent-border);
+  color: var(--accent-text);
 }
 
 /* Toggle switch */

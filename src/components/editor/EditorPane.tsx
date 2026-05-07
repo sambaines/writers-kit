@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import matter from 'gray-matter';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -22,6 +23,9 @@ import {
   scheduleSave,
   cancelScheduledSave,
   saveEntity,
+  scheduleRawSave,
+  saveRawContent,
+  buildRawContent,
   preprocessMarkdownForWikiLinks,
 } from '../../services/editor.service';
 import { WikiLink } from '../../extensions/WikiLink';
@@ -92,6 +96,9 @@ export default function EditorPane() {
   const prevEntityIdRef  = useRef<string | null>(null);
   // Prevents the onUpdate handler from firing during programmatic content loads
   const isLoadingRef = useRef(false);
+  // Stable ref so the entity-switch flush can read current view mode
+  const editorViewRef = useRef(editorView);
+  useEffect(() => { editorViewRef.current = editorView; }, [editorView]);
 
   // ─── TipTap editor ─────────────────────────────────────
 
@@ -160,11 +167,16 @@ export default function EditorPane() {
     if (prevId) {
       const prevEntity = useVaultStore.getState().entities.find((e) => e.id === prevId);
       if (prevEntity) {
-        const title    = titleRef.current?.value ?? prevEntity.title;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const markdown = (editor.storage as any).markdown?.getMarkdown?.() ?? '';
         cancelScheduledSave();
-        void saveEntity(prevEntity, title, markdown);
+        if (editorViewRef.current === 'raw' && rawRef.current) {
+          // Flush raw content as-is
+          void saveRawContent(prevEntity, rawRef.current.value);
+        } else {
+          const title    = titleRef.current?.value ?? prevEntity.title;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const markdown = (editor.storage as any).markdown?.getMarkdown?.() ?? '';
+          void saveEntity(prevEntity, title, markdown);
+        }
       } else {
         cancelScheduledSave();
       }
@@ -199,29 +211,40 @@ export default function EditorPane() {
 
   useEffect(() => {
     if (editorView === 'raw' && rawRef.current && activeEntity && editor) {
-      rawRef.current.value = editorMarkdown() || activeEntity.body;
+      rawRef.current.value = buildRawContent(activeEntity, editorMarkdown() || activeEntity.body);
     }
   }, [editorView, activeEntity?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleRawChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     if (!activeEntity) return;
-    const title = titleRef.current?.value ?? activeEntity.title;
-    scheduleSave(activeEntity, title, e.target.value);
+    scheduleRawSave(activeEntity, e.target.value);
   }
 
   function handleSwitchToRaw() {
-    if (editor && rawRef.current) {
-      rawRef.current.value = editorMarkdown();
+    if (editor && rawRef.current && activeEntity) {
+      rawRef.current.value = buildRawContent(activeEntity, editorMarkdown());
     }
     setEditorView('raw');
   }
 
   function handleSwitchToRich() {
-    if (rawRef.current && editor) {
-      const preprocessed = preprocessMarkdownForWikiLinks(rawRef.current.value);
+    if (rawRef.current && editor && activeEntity) {
+      // Flush any pending raw save immediately so entity in store is up-to-date
+      void saveRawContent(activeEntity, rawRef.current.value);
+
+      // Re-parse body from the raw content and load it into the rich editor
+      const { content: body } = matter(rawRef.current.value);
+      const trimmedBody = body.replace(/^\n/, '');
+      const preprocessed = preprocessMarkdownForWikiLinks(trimmedBody);
       isLoadingRef.current = true;
       editor.commands.setContent(preprocessed);
       isLoadingRef.current = false;
+
+      // Sync the title input from the store's updated entity
+      if (titleRef.current) {
+        const updated = useVaultStore.getState().entities.find((e) => e.id === activeEntity.id);
+        titleRef.current.value = updated?.title ?? activeEntity.title;
+      }
     }
     setEditorView('rich');
   }

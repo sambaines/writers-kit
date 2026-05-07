@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
-import type { Entity, EntityFrontmatter, SchemaDefinition } from '../types';
+import type { Entity, EntityFrontmatter, RelationKind, SchemaDefinition } from '../types';
 import {
   initVault,
   scanVault,
@@ -11,6 +11,24 @@ import {
   createEntityFile,
   updateEntityFrontmatter,
 } from '../services/vault.service';
+
+/* ─── Relation helpers ───────────────────────────────────── */
+
+function kindToKey(kind: RelationKind): string {
+  return `_${kind}`;
+}
+
+function inverseKind(kind: RelationKind): RelationKind {
+  if (kind === 'parentOf')  return 'childOf';
+  if (kind === 'childOf')   return 'parentOf';
+  return kind; // siblingOf ↔ siblingOf, relatedTo ↔ relatedTo
+}
+
+function unique<T>(arr: T[]): T[] {
+  return [...new Set(arr)];
+}
+
+/* ─── Store ─────────────────────────────────────────────── */
 
 interface VaultState {
   vaultPath: string | null;
@@ -40,6 +58,8 @@ interface VaultState {
   createEntity: (type: string, title: string) => Promise<Entity>;
   patchEntityFrontmatter: (entity: Entity, updates: Partial<EntityFrontmatter>) => Promise<Entity>;
   reassignEntitiesType: (fromType: string, toType: string) => Promise<void>;
+  addRelation: (sourceId: string, targetId: string, kind: RelationKind) => Promise<void>;
+  removeRelation: (sourceId: string, targetId: string, kind: RelationKind) => Promise<void>;
 }
 
 export const useVaultStore = create<VaultState>()(
@@ -147,6 +167,48 @@ export const useVaultStore = create<VaultState>()(
             updateEntity(updated);
           }),
         );
+      },
+
+      addRelation: async (sourceId, targetId, kind) => {
+        const { vaultPath, entities, updateEntity } = get();
+        if (!vaultPath) throw new Error('No vault open');
+        const source = entities.find((e) => e.id === sourceId);
+        const target = entities.find((e) => e.id === targetId);
+        if (!source || !target) return;
+
+        const fwd  = kindToKey(kind);
+        const inv  = kindToKey(inverseKind(kind));
+
+        const srcIds = unique([...((source.frontmatter[fwd] as string[]) ?? []), targetId]);
+        const tgtIds = unique([...((target.frontmatter[inv] as string[]) ?? []), sourceId]);
+
+        const [updSrc, updTgt] = await Promise.all([
+          updateEntityFrontmatter(vaultPath, source, { [fwd]: srcIds }),
+          updateEntityFrontmatter(vaultPath, target, { [inv]: tgtIds }),
+        ]);
+        updateEntity(updSrc);
+        updateEntity(updTgt);
+      },
+
+      removeRelation: async (sourceId, targetId, kind) => {
+        const { vaultPath, entities, updateEntity } = get();
+        if (!vaultPath) throw new Error('No vault open');
+        const source = entities.find((e) => e.id === sourceId);
+        const target = entities.find((e) => e.id === targetId);
+        if (!source || !target) return;
+
+        const fwd = kindToKey(kind);
+        const inv = kindToKey(inverseKind(kind));
+
+        const srcIds = ((source.frontmatter[fwd] as string[]) ?? []).filter((id) => id !== targetId);
+        const tgtIds = ((target.frontmatter[inv] as string[]) ?? []).filter((id) => id !== sourceId);
+
+        const [updSrc, updTgt] = await Promise.all([
+          updateEntityFrontmatter(vaultPath, source, { [fwd]: srcIds }),
+          updateEntityFrontmatter(vaultPath, target, { [inv]: tgtIds }),
+        ]);
+        updateEntity(updSrc);
+        updateEntity(updTgt);
       },
     }),
     {

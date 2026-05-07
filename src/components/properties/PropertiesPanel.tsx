@@ -3,15 +3,20 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Select from '@radix-ui/react-select';
 import {
   X, Hash, Calendar, Tag, TextT,
-  ArrowUpRight, TreeStructure, ArrowsOut,
+  ArrowUpRight, Plus, ArrowsOut,
   FileText, Clock, PencilLine, Eye, CaretUpDown,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
+import RelationPickerDialog from '../relations/RelationPickerDialog';
 import styles from './PropertiesPanel.module.css';
-import type { FieldDefinition } from '../../types';
+import type { FieldDefinition, RelationKind } from '../../types';
+
+function unique<T>(arr: T[]): T[] {
+  return [...new Set(arr)];
+}
 
 function formatDate(iso: string): string {
   try {
@@ -60,9 +65,12 @@ interface FieldInputProps {
   field: FieldDefinition;
   value: unknown;
   onSave: (key: string, value: unknown) => void;
+  entities?: ReturnType<typeof useVaultData>['entities'];
+  schemas?: ReturnType<typeof useVaultData>['schemas'];
+  sourceEntityId?: string;
 }
 
-function FieldInput({ field, value, onSave }: FieldInputProps) {
+function FieldInput({ field, value, onSave, entities = [], schemas = [], sourceEntityId }: FieldInputProps) {
   const [localVal, setLocalVal] = useState<string>(
     value === undefined || value === null ? '' : String(value),
   );
@@ -121,7 +129,53 @@ function FieldInput({ field, value, onSave }: FieldInputProps) {
     );
   }
 
-  // text, tags, date, select, relation → text input
+  if (field.type === 'relation') {
+    const ids: string[] = Array.isArray(value) ? (value as string[]) : [];
+    const [relPickerOpen, setRelPickerOpen] = useState(false);
+    const allowedTypes = field.relatesTo ?? [];
+    const source = sourceEntityId ? entities.find((e) => e.id === sourceEntityId) : undefined;
+    return (
+      <div className={styles.relFieldWrap}>
+        {ids.map((id) => {
+          const target = entities.find((e) => e.id === id);
+          const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
+          return (
+            <span key={id} className={styles.relChip}>
+              {tSchema && <DynamicIcon name={tSchema.icon} size={10} color={tSchema.color} />}
+              <span>{target?.title ?? id}</span>
+              <button
+                type="button"
+                className={styles.relChipRemove}
+                onClick={() => onSave(field.key, ids.filter((i) => i !== id))}
+                aria-label="Remove"
+              >
+                <X size={9} />
+              </button>
+            </span>
+          );
+        })}
+        <button type="button" className={styles.relFieldAdd} onClick={() => setRelPickerOpen(true)}>
+          <Plus size={10} />
+          Add
+        </button>
+        {source && (
+          <RelationPickerDialog
+            open={relPickerOpen}
+            sourceEntity={source}
+            existingTargetIds={ids}
+            entities={entities}
+            schemas={schemas}
+            defaultKind="relatedTo"
+            filterTypes={allowedTypes.length > 0 ? allowedTypes : undefined}
+            onSelect={(targetId) => onSave(field.key, unique([...ids, targetId]))}
+            onClose={() => setRelPickerOpen(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // text, tags, date, select → text input
   return (
     <input
       type="text"
@@ -136,14 +190,19 @@ function FieldInput({ field, value, onSave }: FieldInputProps) {
 // ─── Main panel ───────────────────────────────────────────
 
 export default function PropertiesPanel() {
-  const { activeEntityId, setPropertiesPanelOpen } = useUIStore(
+  const { activeEntityId, setActiveEntityId, setPropertiesPanelOpen } = useUIStore(
     useShallow((s) => ({
       activeEntityId:         s.activeEntityId,
+      setActiveEntityId:      s.setActiveEntityId,
       setPropertiesPanelOpen: s.setPropertiesPanelOpen,
     })),
   );
   const { entities, schemas } = useVaultData();
   const patchEntityFrontmatter = useVaultStore((s) => s.patchEntityFrontmatter);
+  const addRelation             = useVaultStore((s) => s.addRelation);
+  const removeRelation          = useVaultStore((s) => s.removeRelation);
+
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const entity = entities.find((e) => e.id === activeEntityId) ?? null;
   const schema = entity ? schemas.find((s) => s.name === entity.type) : null;
@@ -153,18 +212,32 @@ export default function PropertiesPanel() {
     value: entity?.frontmatter[field.key],
   })) ?? [];
 
-  const relations = entity
+  // Build flat relation list with kind metadata
+  type RelationItem = { kind: RelationKind; label: string; targetId: string };
+  const relations: RelationItem[] = entity
     ? [
-        ...((entity.frontmatter._parentOf  as string[] | undefined) ?? []).map((t) => ({ kind: 'Parent of',  target: t })),
-        ...((entity.frontmatter._childOf   as string[] | undefined) ?? []).map((t) => ({ kind: 'Child of',   target: t })),
-        ...((entity.frontmatter._siblingOf as string[] | undefined) ?? []).map((t) => ({ kind: 'Sibling of', target: t })),
-        ...((entity.frontmatter._relatedTo as string[] | undefined) ?? []).map((t) => ({ kind: 'Related to', target: t })),
+        ...((entity.frontmatter._parentOf  as string[] | undefined) ?? []).map((t) => ({ kind: 'parentOf'  as RelationKind, label: 'Parent of',  targetId: t })),
+        ...((entity.frontmatter._childOf   as string[] | undefined) ?? []).map((t) => ({ kind: 'childOf'   as RelationKind, label: 'Child of',   targetId: t })),
+        ...((entity.frontmatter._siblingOf as string[] | undefined) ?? []).map((t) => ({ kind: 'siblingOf' as RelationKind, label: 'Sibling of', targetId: t })),
+        ...((entity.frontmatter._relatedTo as string[] | undefined) ?? []).map((t) => ({ kind: 'relatedTo' as RelationKind, label: 'Related to', targetId: t })),
       ]
     : [];
+
+  const existingTargetIds = relations.map((r) => r.targetId);
 
   function handleFieldSave(key: string, value: unknown) {
     if (!entity) return;
     void patchEntityFrontmatter(entity, { [key]: value });
+  }
+
+  function handleAddRelation(targetId: string, kind: RelationKind) {
+    if (!entity) return;
+    void addRelation(entity.id, targetId, kind);
+  }
+
+  function handleRemoveRelation(targetId: string, kind: RelationKind) {
+    if (!entity) return;
+    void removeRelation(entity.id, targetId, kind);
   }
 
   return (
@@ -259,6 +332,9 @@ export default function PropertiesPanel() {
                             field={field}
                             value={field.value}
                             onSave={handleFieldSave}
+                            entities={entities}
+                            schemas={schemas}
+                            sourceEntityId={entity?.id}
                           />
                         </div>
                       </div>
@@ -272,27 +348,38 @@ export default function PropertiesPanel() {
               <section className={styles.section}>
                 <div className={styles.sectionHeader}>Relations</div>
                 <div className={styles.relations}>
-                  {relations.length === 0 ? (
-                    <span className={styles.emptyHint}>No relations</span>
-                  ) : (
-                    relations.map((rel, i) => {
-                      const target = entities.find((e) => e.id === rel.target);
-                      return (
-                        <div key={i} className={styles.relation}>
-                          <span className={styles.relKind}>{rel.kind}</span>
-                          <button className={styles.relLink}>
-                            <ArrowUpRight size={11} />
-                            <span>{target?.title ?? rel.target}</span>
-                            {target && (
-                              <span className={styles.relType}>{target.type}</span>
-                            )}
-                          </button>
-                        </div>
-                      );
-                    })
+                  {relations.length === 0 && (
+                    <span className={styles.emptyHint}>No relations yet</span>
                   )}
-                  <button className={styles.addRelation}>
-                    <TreeStructure size={12} />
+                  {relations.map((rel, i) => {
+                    const target = entities.find((e) => e.id === rel.targetId);
+                    const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
+                    const tIcon  = target?.icon ?? tSchema?.icon ?? 'File';
+                    const tColor = target?.color ?? tSchema?.color ?? 'var(--text-tertiary)';
+                    return (
+                      <div key={i} className={styles.relation}>
+                        <span className={styles.relKind}>{rel.label}</span>
+                        <button
+                          className={styles.relLink}
+                          onClick={() => target && setActiveEntityId(target.id)}
+                          title={target ? `Open ${target.title}` : rel.targetId}
+                        >
+                          <DynamicIcon name={tIcon} size={11} color={tColor} weight="duotone" />
+                          <span>{target?.title ?? rel.targetId}</span>
+                          {target && <ArrowUpRight size={10} className={styles.relArrow} />}
+                        </button>
+                        <button
+                          className={styles.relRemoveBtn}
+                          onClick={() => handleRemoveRelation(rel.targetId, rel.kind)}
+                          aria-label="Remove relation"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button className={styles.addRelation} onClick={() => setPickerOpen(true)}>
+                    <Plus size={12} />
                     <span>Add relation</span>
                   </button>
                 </div>
@@ -344,6 +431,18 @@ export default function PropertiesPanel() {
           <ScrollArea.Thumb className={styles.scrollThumb} />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
+
+      {entity && (
+        <RelationPickerDialog
+          open={pickerOpen}
+          sourceEntity={entity}
+          existingTargetIds={existingTargetIds}
+          entities={entities}
+          schemas={schemas}
+          onSelect={handleAddRelation}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
