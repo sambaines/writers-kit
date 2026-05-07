@@ -1,0 +1,229 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg-base);
+  min-width: 0;
+}
+
+/* ─── Toolbar ────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  height: var(--toolbar-height);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.filterChips {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  background: transparent;
+  transition: border-color 0.1s, color 0.1s, background 0.1s;
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+/* Active state comes from inline style overrides */
+.chipActive {}
+
+/* ─── Zoom controls ──────────────────────────────────────── */
+.zoomControls {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.zoomBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.zoomBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+/* ─── Canvas ─────────────────────────────────────────────── */
+.scrollArea {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  min-width: 320px;
+}
+
+/* Axis line */
+.axisLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-subtle);
+  pointer-events: none;
+}
+
+/* ─── Tick marks ─────────────────────────────────────────── */
+.tickRow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.tickLabel {
+  width: var(--axis-x, 88px);
+  text-align: right;
+  padding-right: 12px;
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tickMajor .tickLabel {
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+}
+
+.tickMark {
+  width: 6px;
+  height: 1px;
+  background: var(--border-subtle);
+  display: block;
+  flex-shrink: 0;
+}
+
+.tickMajor .tickMark {
+  width: 10px;
+  background: var(--border-default);
+}
+
+/* ─── Point item ─────────────────────────────────────────── */
+.pointItem {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
+}
+
+.pointDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin: 0 8px;
+  box-shadow: 0 0 0 2px var(--bg-base);
+}
+
+/* ─── Span item ──────────────────────────────────────────── */
+.spanItem {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+}
+
+.spanBar {
+  width: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin: 2px 10px 0;
+  opacity: 0.65;
+}
+
+/* ─── Shared event label ─────────────────────────────────── */
+.eventLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: transparent;
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+  text-align: left;
+}
+
+.eventLabel:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.fieldTag {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.itemYear {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
+
+/* ─── Empty state ────────────────────────────────────────── */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-12);
+  text-align: center;
+  user-select: none;
+}
+
+.emptyState p {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+}
+
+.emptyHint {
+  font-size: var(--text-xs) !important;
+  color: var(--text-disabled) !important;
+}

@@ -322,7 +322,7 @@ export default function PropertiesPanel() {
                   <div className={styles.sectionHeader}>Properties</div>
                   <div className={styles.fields}>
                     {userFields.map((field) => (
-                      <div key={field.key} className={styles.field}>
+                      <div key={`${entity.id}-${field.key}`} className={styles.field}>
                         <div className={styles.fieldLabel}>
                           <FieldIcon type={field.type} />
                           <span>{field.label}</span>

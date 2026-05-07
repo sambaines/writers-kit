@@ -192,7 +192,7 @@
 
 /* ─── Dropdown menu ─────────────────────────────────────── */
 .dropMenu {
-  background: var(--bg-floating);
+  background: var(--bg-overlay);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 4px;

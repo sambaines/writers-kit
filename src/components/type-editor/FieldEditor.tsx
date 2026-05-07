@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as Select from '@radix-ui/react-select';
-import { Plus, Trash, ArrowUp, ArrowDown, CaretDown } from '@phosphor-icons/react';
+import { Plus, Trash, ArrowUp, ArrowDown, CaretDown, ChartLine } from '@phosphor-icons/react';
 import type { FieldDefinition, FieldType } from '../../types';
 import styles from './FieldEditor.module.css';
 
@@ -76,7 +76,7 @@ export default function FieldEditor({ fields, onChange }: FieldEditorProps) {
                 />
                 <Select.Root
                   value={field.type}
-                  onValueChange={(v) => updateField(i, { type: v as FieldType })}
+                  onValueChange={(v) => updateField(i, { type: v as FieldType, timelineVisible: undefined })}
                 >
                   <Select.Trigger asChild>
                     <button className={styles.typeSelect}>
@@ -125,6 +125,20 @@ export default function FieldEditor({ fields, onChange }: FieldEditorProps) {
                   <Trash size={12} />
                 </button>
               </div>
+              {field.type === 'date' && (
+                <div className={styles.dateOptions}>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!!field.timelineVisible}
+                    className={`${styles.timelineToggle} ${field.timelineVisible ? styles.timelineToggleOn : ''}`}
+                    onClick={() => updateField(i, { timelineVisible: !field.timelineVisible })}
+                  >
+                    <ChartLine size={11} />
+                    <span>Show on timeline</span>
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

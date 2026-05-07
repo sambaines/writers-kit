@@ -4,7 +4,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   Feather, Files, Archive, Plus, Gear, FolderOpen,
-  DotsThree, PencilSimple, Trash,
+  DotsThree, PencilSimple, Trash, ChartLine,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -20,11 +20,13 @@ import clsx from 'clsx';
 import styles from './TypeNav.module.css';
 
 export default function TypeNav() {
-  const { activeTypeId, setActiveTypeId, setActiveEntityId } = useUIStore(
+  const { activeTypeId, setActiveTypeId, setActiveEntityId, activeView, setActiveView } = useUIStore(
     useShallow((s) => ({
       activeTypeId:      s.activeTypeId,
       setActiveTypeId:   s.setActiveTypeId,
       setActiveEntityId: s.setActiveEntityId,
+      activeView:        s.activeView,
+      setActiveView:     s.setActiveView,
     })),
   );
 
@@ -42,6 +44,7 @@ export default function TypeNav() {
   }
 
   function handleNavClick(id: string | null) {
+    setActiveView('editor');
     setActiveTypeId(id);
     setActiveEntityId(null);
   }
@@ -88,6 +91,13 @@ export default function TypeNav() {
                 {archiveCount > 0 && (
                   <span className={styles.count}>{archiveCount}</span>
                 )}
+              </button>
+              <button
+                className={clsx(styles.navItem, activeView === 'timeline' && styles.active)}
+                onClick={() => setActiveView(activeView === 'timeline' ? 'editor' : 'timeline')}
+              >
+                <ChartLine size={15} weight={activeView === 'timeline' ? 'fill' : 'regular'} />
+                <span>Timeline</span>
               </button>
             </div>
 
