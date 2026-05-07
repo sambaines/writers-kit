@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { ViewMode, EditorView } from '../types';
 
 export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+export type RightPanel = 'properties' | 'chat';
 
 interface UIState {
   /* Navigation */
@@ -11,6 +12,8 @@ interface UIState {
 
   /* Panel visibility */
   propertiesPanelOpen: boolean;
+  activeRightPanel: RightPanel;
+  askDrawerOpen: boolean;
 
   /* Editor state */
   editorView: EditorView;
@@ -22,6 +25,8 @@ interface UIState {
   setActiveEntityId: (id: string | null) => void;
   togglePropertiesPanel: () => void;
   setPropertiesPanelOpen: (open: boolean) => void;
+  setActiveRightPanel: (panel: RightPanel) => void;
+  setAskDrawerOpen: (open: boolean) => void;
   setEditorView: (view: EditorView) => void;
   setSaveStatus: (status: SaveStatus) => void;
 }
@@ -31,6 +36,8 @@ export const useUIStore = create<UIState>((set) => ({
   activeTypeId: null,
   activeEntityId: null,
   propertiesPanelOpen: true,
+  activeRightPanel: 'properties',
+  askDrawerOpen: false,
   editorView: 'rich',
   saveStatus: 'idle',
 
@@ -40,6 +47,8 @@ export const useUIStore = create<UIState>((set) => ({
   togglePropertiesPanel: () =>
     set((state) => ({ propertiesPanelOpen: !state.propertiesPanelOpen })),
   setPropertiesPanelOpen: (open) => set({ propertiesPanelOpen: open }),
+  setActiveRightPanel: (panel) => set({ activeRightPanel: panel, propertiesPanelOpen: true }),
+  setAskDrawerOpen: (open) => set({ askDrawerOpen: open }),
   setEditorView: (view) => set({ editorView: view }),
   setSaveStatus: (status) => set({ saveStatus: status }),
 }));

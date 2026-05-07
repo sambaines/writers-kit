@@ -14,7 +14,7 @@ import {
   TextB, TextItalic, TextUnderline, TextStrikethrough,
   ListBullets, ListNumbers, Quotes, Code, Terminal, Link,
   ArrowCounterClockwise, ArrowClockwise,
-  Eye, PencilLine, SidebarSimple, Feather,
+  Eye, PencilLine, SidebarSimple, Feather, Brain,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -69,16 +69,22 @@ function ToolbarButton({ icon, label, active, disabled, onClick }: ToolbarButton
 // ─── Editor pane ─────────────────────────────────────────
 
 export default function EditorPane() {
-  const { activeEntityId, editorView, setEditorView, propertiesPanelOpen, togglePropertiesPanel } =
-    useUIStore(
-      useShallow((s) => ({
-        activeEntityId:        s.activeEntityId,
-        editorView:            s.editorView,
-        setEditorView:         s.setEditorView,
-        propertiesPanelOpen:   s.propertiesPanelOpen,
-        togglePropertiesPanel: s.togglePropertiesPanel,
-      })),
-    );
+  const {
+    activeEntityId, editorView, setEditorView,
+    propertiesPanelOpen, togglePropertiesPanel,
+    activeRightPanel, setActiveRightPanel, setPropertiesPanelOpen,
+  } = useUIStore(
+    useShallow((s) => ({
+      activeEntityId:         s.activeEntityId,
+      editorView:             s.editorView,
+      setEditorView:          s.setEditorView,
+      propertiesPanelOpen:    s.propertiesPanelOpen,
+      togglePropertiesPanel:  s.togglePropertiesPanel,
+      activeRightPanel:       s.activeRightPanel,
+      setActiveRightPanel:    s.setActiveRightPanel,
+      setPropertiesPanelOpen: s.setPropertiesPanelOpen,
+    })),
+  );
 
   const { entities, schemas } = useVaultData();
   const activeEntity = entities.find((e) => e.id === activeEntityId) ?? null;
@@ -392,8 +398,36 @@ export default function EditorPane() {
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
                 <button
-                  className={clsx(styles.toolbarBtn, propertiesPanelOpen && styles.toolbarBtnActive)}
-                  onClick={togglePropertiesPanel}
+                  className={clsx(styles.toolbarBtn, propertiesPanelOpen && activeRightPanel === 'chat' && styles.toolbarBtnActive)}
+                  onClick={() => {
+                    if (propertiesPanelOpen && activeRightPanel === 'chat') {
+                      setPropertiesPanelOpen(false);
+                    } else {
+                      setActiveRightPanel('chat');
+                    }
+                  }}
+                  aria-label="Toggle chat panel"
+                >
+                  <Brain size={15} />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content className={styles.tooltip} sideOffset={6}>
+                  {propertiesPanelOpen && activeRightPanel === 'chat' ? 'Hide Claude' : 'Ask Claude'}
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <button
+                  className={clsx(styles.toolbarBtn, propertiesPanelOpen && activeRightPanel === 'properties' && styles.toolbarBtnActive)}
+                  onClick={() => {
+                    if (propertiesPanelOpen && activeRightPanel === 'properties') {
+                      togglePropertiesPanel();
+                    } else {
+                      setActiveRightPanel('properties');
+                    }
+                  }}
                   aria-label="Toggle properties panel"
                 >
                   <SidebarSimple size={15} mirrored />
@@ -401,7 +435,7 @@ export default function EditorPane() {
               </Tooltip.Trigger>
               <Tooltip.Portal>
                 <Tooltip.Content className={styles.tooltip} sideOffset={6}>
-                  {propertiesPanelOpen ? 'Hide properties' : 'Show properties'}
+                  {propertiesPanelOpen && activeRightPanel === 'properties' ? 'Hide properties' : 'Show properties'}
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>

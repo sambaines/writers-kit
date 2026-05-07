@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rust build
+src-tauri/target/
+
+# Environment & secrets — never commit API keys
+.env
+.env.local
+.env*.local

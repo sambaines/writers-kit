@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 use git2::{Repository, StatusOptions, IndexAddOption, RemoteCallbacks, PushOptions};
+use rusqlite::Connection;
 
 #[derive(serde::Serialize)]
 struct FileStat {
@@ -115,6 +116,12 @@ struct GitCommit {
 #[tauri::command]
 fn git_init(vault_path: String) -> Result<(), String> {
     Repository::init(&vault_path).map_err(|e| e.to_string())?;
+    // Write a .gitignore that keeps .writerkit/ (settings, db, API key) out of version control
+    let gitignore_path = Path::new(&vault_path).join(".gitignore");
+    if !gitignore_path.exists() {
+        fs::write(&gitignore_path, "# Writers Kit internals (settings, database, API keys)\n.writerkit/\n")
+            .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
@@ -256,6 +263,211 @@ fn git_set_remote(vault_path: String, url: String) -> Result<(), String> {
     }
 }
 
+// ─── FTS / Search ─────────────────────────────────────────
+
+fn writerkit_db_path(vault_path: &str) -> std::path::PathBuf {
+    Path::new(vault_path).join(".writerkit").join("search.db")
+}
+
+fn open_search_db(vault_path: &str) -> Result<Connection, String> {
+    let db_path = writerkit_db_path(vault_path);
+    if let Some(parent) = db_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    conn.execute_batch(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS fts USING fts5(path UNINDEXED, title, content, tokenize='porter ascii');"
+    ).map_err(|e| e.to_string())?;
+    Ok(conn)
+}
+
+#[derive(serde::Serialize)]
+struct SearchResult {
+    path: String,
+    title: String,
+    excerpt: String,
+}
+
+fn search_vault_internal(vault_path: &str, query: &str, limit: usize) -> Result<Vec<SearchResult>, String> {
+    let conn = open_search_db(vault_path)?;
+    let escaped = query.replace('"', "\"\"");
+    let fts_query = format!("\"{}\"", escaped);
+    let sql = "SELECT path, title, snippet(fts, 2, '', '', '…', 48) FROM fts WHERE fts MATCH ?1 ORDER BY rank LIMIT ?2";
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let results = stmt.query_map(
+        rusqlite::params![fts_query, limit as i64],
+        |row| Ok(SearchResult { path: row.get(0)?, title: row.get(1)?, excerpt: row.get(2)? }),
+    ).map_err(|e| e.to_string())?
+    .filter_map(|r| r.ok())
+    .collect();
+    Ok(results)
+}
+
+#[tauri::command]
+fn fts_rebuild_index(vault_path: String) -> Result<usize, String> {
+    let conn = open_search_db(&vault_path)?;
+    conn.execute("DELETE FROM fts", []).map_err(|e| e.to_string())?;
+    let base = Path::new(&vault_path);
+    let mut files = Vec::new();
+    collect_md_files(base, base, &mut files)?;
+    let mut count = 0;
+    for rel_path in &files {
+        let full_path = base.join(rel_path);
+        if let Ok(content) = fs::read_to_string(&full_path) {
+            let title = rel_path.trim_end_matches(".md")
+                .split(['/', '\\'])
+                .last()
+                .unwrap_or(rel_path)
+                .to_string();
+            conn.execute(
+                "INSERT INTO fts (path, title, content) VALUES (?1, ?2, ?3)",
+                rusqlite::params![rel_path, title, content],
+            ).map_err(|e| e.to_string())?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+#[tauri::command]
+fn fts_search(vault_path: String, query: String, limit: Option<usize>) -> Result<Vec<SearchResult>, String> {
+    search_vault_internal(&vault_path, &query, limit.unwrap_or(5))
+}
+
+// ─── API key ──────────────────────────────────────────────
+
+#[tauri::command]
+fn get_api_key(vault_path: String) -> Option<String> {
+    // 1. Environment variable
+    if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
+        if !key.trim().is_empty() { return Some(key.trim().to_string()); }
+    }
+    // 2. ~/.claude/api_key file
+    if let Ok(home) = std::env::var("HOME") {
+        let p = Path::new(&home).join(".claude").join("api_key");
+        if let Ok(key) = fs::read_to_string(&p) {
+            let key = key.trim().to_string();
+            if !key.is_empty() { return Some(key); }
+        }
+    }
+    // 3. .writerkit/settings.json in vault
+    let settings_path = Path::new(&vault_path).join(".writerkit").join("settings.json");
+    if let Ok(content) = fs::read_to_string(&settings_path) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(key) = json["anthropic_api_key"].as_str() {
+                if !key.is_empty() { return Some(key.to_string()); }
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn save_api_key(vault_path: String, key: String) -> Result<(), String> {
+    let settings_path = Path::new(&vault_path).join(".writerkit").join("settings.json");
+    if let Some(parent) = settings_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut settings = if let Ok(content) = fs::read_to_string(&settings_path) {
+        serde_json::from_str::<serde_json::Value>(&content).unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+    settings["anthropic_api_key"] = serde_json::Value::String(key);
+    fs::write(&settings_path, serde_json::to_string_pretty(&settings).unwrap())
+        .map_err(|e| e.to_string())
+}
+
+// ─── Claude chat (agentic loop with tool use) ─────────────
+
+#[tauri::command]
+async fn claude_chat(
+    vault_path: String,
+    api_key: String,
+    messages: Vec<serde_json::Value>,
+) -> Result<String, String> {
+    let tools = vec![serde_json::json!({
+        "name": "search_vault",
+        "description": "Search all files in the writing vault for relevant content. Use this to look up characters, locations, events, lore, or any entity by name or concept.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": { "type": "string", "description": "Search terms to find relevant vault files" }
+            },
+            "required": ["query"]
+        }
+    })];
+
+    let system = "You are a helpful writing assistant. The user is working on a writing project. \
+        You have access to a search tool that searches their vault files. \
+        When asked about specific characters, locations, events, or world details, always search first before answering. \
+        Be concise and specific. Quote or reference the source file when relevant.";
+
+    let client = reqwest::Client::new();
+    let mut current_messages = messages;
+
+    for _ in 0..5 {
+        let body = serde_json::json!({
+            "model": "claude-sonnet-4-6",
+            "max_tokens": 4096,
+            "system": system,
+            "tools": tools,
+            "messages": current_messages,
+        });
+
+        let resp = client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        if !resp.status().is_success() {
+            let err = resp.text().await.unwrap_or_default();
+            return Err(format!("API error: {err}"));
+        }
+
+        let response: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+        let stop_reason = response["stop_reason"].as_str().unwrap_or("");
+        let content = response["content"].as_array().ok_or("Empty response")?.clone();
+
+        if stop_reason == "tool_use" {
+            current_messages.push(serde_json::json!({ "role": "assistant", "content": content }));
+            let mut tool_results: Vec<serde_json::Value> = Vec::new();
+            for block in &content {
+                if block["type"].as_str() == Some("tool_use") && block["name"].as_str() == Some("search_vault") {
+                    let tool_id = block["id"].as_str().unwrap_or("").to_string();
+                    let query = block["input"]["query"].as_str().unwrap_or("").to_string();
+                    let results = search_vault_internal(&vault_path, &query, 5)?;
+                    let result_text = if results.is_empty() {
+                        "No results found.".to_string()
+                    } else {
+                        results.iter().map(|r| format!("**{}** ({})\n{}", r.title, r.path, r.excerpt))
+                            .collect::<Vec<_>>().join("\n\n")
+                    };
+                    tool_results.push(serde_json::json!({
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": result_text,
+                    }));
+                }
+            }
+            current_messages.push(serde_json::json!({ "role": "user", "content": tool_results }));
+        } else {
+            let text = content.iter()
+                .find(|b| b["type"].as_str() == Some("text"))
+                .and_then(|b| b["text"].as_str())
+                .unwrap_or("")
+                .to_string();
+            return Ok(text);
+        }
+    }
+    Err("Max search iterations reached".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -276,6 +488,11 @@ pub fn run() {
             git_push,
             git_get_remote,
             git_set_remote,
+            fts_rebuild_index,
+            fts_search,
+            get_api_key,
+            save_api_key,
+            claude_chat,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

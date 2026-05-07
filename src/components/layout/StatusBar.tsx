@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import {
   GitBranch, CheckCircle, FloppyDisk, Warning, Circle, GitCommit,
-  DotOutline,
+  DotOutline, Brain,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData } from '../../store/vault.store';
 import { useGitStore } from '../../store/git.store';
+import { useChatStore } from '../../store/chat.store';
+import { invoke } from '@tauri-apps/api/core';
 import { useShallow } from 'zustand/react/shallow';
 import styles from './StatusBar.module.css';
 
@@ -21,13 +23,15 @@ function readTime(words: number): string {
 }
 
 export default function StatusBar() {
-  const { activeEntityId, saveStatus } = useUIStore(
+  const { activeEntityId, saveStatus, askDrawerOpen, setAskDrawerOpen } = useUIStore(
     useShallow((s) => ({
-      activeEntityId: s.activeEntityId,
-      saveStatus:     s.saveStatus,
+      activeEntityId:   s.activeEntityId,
+      saveStatus:       s.saveStatus,
+      askDrawerOpen:    s.askDrawerOpen,
+      setAskDrawerOpen: s.setAskDrawerOpen,
     })),
   );
-  const { entities, schemas } = useVaultData();
+  const { entities, schemas, vaultPath } = useVaultData();
   const { repoStatus, changedFiles, commitDrawerOpen, setCommitDrawerOpen, refresh } =
     useGitStore(
       useShallow((s) => ({
@@ -38,6 +42,7 @@ export default function StatusBar() {
         refresh:             s.refresh,
       })),
     );
+  const loadApiKey = useChatStore((s) => s.loadApiKey);
 
   const entity = entities.find((e) => e.id === activeEntityId) ?? null;
   const schema = entity ? schemas.find((s) => s.name === entity.type) : null;
@@ -49,10 +54,20 @@ export default function StatusBar() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  // Also refresh after saves
+  // Rebuild FTS index + load API key when vault opens
   useEffect(() => {
-    if (saveStatus === 'saved') void refresh();
-  }, [saveStatus, refresh]);
+    if (!vaultPath) return;
+    void invoke('fts_rebuild_index', { vaultPath });
+    void loadApiKey();
+  }, [vaultPath, loadApiKey]);
+
+  // Rebuild FTS index after saves (debounced by the 'saved' state transition)
+  useEffect(() => {
+    if (saveStatus === 'saved') {
+      void refresh();
+      if (vaultPath) void invoke('fts_rebuild_index', { vaultPath });
+    }
+  }, [saveStatus, refresh, vaultPath]);
 
   const isDirty = repoStatus === 'dirty';
   const hasRepo = repoStatus !== 'no-repo';
@@ -172,6 +187,17 @@ export default function StatusBar() {
             </button>
           </>
         )}
+
+        {/* Ask button */}
+        <span className={styles.statDivider} />
+        <button
+          className={styles.askBtn}
+          onClick={() => setAskDrawerOpen(!askDrawerOpen)}
+          aria-label="Quick ask Claude"
+        >
+          <Brain size={12} />
+          <span>Ask</span>
+        </button>
 
         {entity && (
           <>

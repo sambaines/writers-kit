@@ -138,6 +138,28 @@
   background: var(--accent-hover);
 }
 
+/* ─── Ask button ─────────────────────────────────────────── */
+.askBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--accent-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background 0.12s;
+  line-height: 1;
+  height: 18px;
+}
+
+.askBtn:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
 /* ─── Save status ────────────────────────────────────────── */
 .saveStatus {
   display: flex;

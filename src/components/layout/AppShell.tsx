@@ -4,17 +4,20 @@ import TypeNav from './TypeNav';
 import EntityList from './EntityList';
 import EditorPane from '../editor/EditorPane';
 import PropertiesPanel from '../properties/PropertiesPanel';
+import ChatPanel from '../chat/ChatPanel';
 import TimelineView from '../timeline/TimelineView';
 import StatusBar from './StatusBar';
 import CommitDrawer from '../git/CommitDrawer';
+import AskDrawer from '../chat/AskDrawer';
 import styles from './AppShell.module.css';
 import clsx from 'clsx';
 
 export default function AppShell() {
-  const { propertiesPanelOpen, activeView } = useUIStore(
+  const { propertiesPanelOpen, activeView, activeRightPanel } = useUIStore(
     useShallow((s) => ({
       propertiesPanelOpen: s.propertiesPanelOpen,
       activeView:          s.activeView,
+      activeRightPanel:    s.activeRightPanel,
     })),
   );
 
@@ -34,10 +37,11 @@ export default function AppShell() {
           className={clsx(styles.propsWrapper, !propertiesPanelOpen && styles.propsClosed)}
           aria-hidden={!propertiesPanelOpen}
         >
-          <PropertiesPanel />
+          {activeRightPanel === 'chat' ? <ChatPanel /> : <PropertiesPanel />}
         </div>
       </div>
       <CommitDrawer />
+      <AskDrawer />
       <StatusBar />
     </div>
   );

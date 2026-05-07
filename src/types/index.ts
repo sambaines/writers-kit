@@ -93,6 +93,15 @@ export interface VaultConfig {
   activeCalendarId?: string;
 }
 
+/* ─── Chat Types ────────────────────────────────────────── */
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
 /* ─── Git Types ─────────────────────────────────────────── */
 
 export type GitFileStatusKind = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
