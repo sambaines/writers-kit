@@ -310,6 +310,23 @@
   color: var(--text-secondary);
 }
 
+/* Reset strips list markers — restore them inside the editor */
+.proseMirror :global(ul) {
+  list-style-type: disc;
+}
+
+.proseMirror :global(ul ul) {
+  list-style-type: circle;
+}
+
+.proseMirror :global(ul ul ul) {
+  list-style-type: square;
+}
+
+.proseMirror :global(ol) {
+  list-style-type: decimal;
+}
+
 .proseMirror :global(li) {
   margin: var(--space-1) 0;
 }

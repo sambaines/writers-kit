@@ -4,34 +4,37 @@ import type { Highlighter } from 'shiki';
 let _highlighter: Highlighter | null = null;
 let _initPromise: Promise<Highlighter> | null = null;
 
+// Plain Text kept at top; remainder sorted alphabetically by label
 export const BUNDLED_LANGUAGES: { value: string; label: string }[] = [
   { value: 'text',       label: 'Plain Text'  },
   { value: 'bash',       label: 'Bash'        },
-  { value: 'javascript', label: 'JavaScript'  },
-  { value: 'typescript', label: 'TypeScript'  },
-  { value: 'tsx',        label: 'TSX'         },
-  { value: 'html',       label: 'HTML'        },
-  { value: 'css',        label: 'CSS'         },
-  { value: 'scss',       label: 'SCSS'        },
-  { value: 'json',       label: 'JSON'        },
-  { value: 'yaml',       label: 'YAML'        },
-  { value: 'toml',       label: 'TOML'        },
-  { value: 'markdown',   label: 'Markdown'    },
-  { value: 'python',     label: 'Python'      },
-  { value: 'rust',       label: 'Rust'        },
-  { value: 'go',         label: 'Go'          },
-  { value: 'java',       label: 'Java'        },
   { value: 'c',          label: 'C'           },
   { value: 'cpp',        label: 'C++'         },
   { value: 'csharp',     label: 'C#'          },
-  { value: 'ruby',       label: 'Ruby'        },
-  { value: 'php',        label: 'PHP'         },
-  { value: 'sql',        label: 'SQL'         },
-  { value: 'xml',        label: 'XML'         },
+  { value: 'css',        label: 'CSS'         },
   { value: 'diff',       label: 'Diff'        },
-  { value: 'regex',      label: 'Regex'       },
-  { value: 'glsl',       label: 'GLSL'        },
+  { value: 'gdresource', label: 'GDResource'  },
   { value: 'gdscript',   label: 'GDScript'    },
+  { value: 'gdshader',   label: 'GDShader'    },
+  { value: 'glsl',       label: 'GLSL'        },
+  { value: 'go',         label: 'Go'          },
+  { value: 'html',       label: 'HTML'        },
+  { value: 'java',       label: 'Java'        },
+  { value: 'javascript', label: 'JavaScript'  },
+  { value: 'json',       label: 'JSON'        },
+  { value: 'markdown',   label: 'Markdown'    },
+  { value: 'php',        label: 'PHP'         },
+  { value: 'python',     label: 'Python'      },
+  { value: 'regex',      label: 'Regex'       },
+  { value: 'ruby',       label: 'Ruby'        },
+  { value: 'rust',       label: 'Rust'        },
+  { value: 'scss',       label: 'SCSS'        },
+  { value: 'sql',        label: 'SQL'         },
+  { value: 'toml',       label: 'TOML'        },
+  { value: 'tsx',        label: 'TSX'         },
+  { value: 'typescript', label: 'TypeScript'  },
+  { value: 'xml',        label: 'XML'         },
+  { value: 'yaml',       label: 'YAML'        },
 ];
 
 const SHIKI_LANG_IDS = BUNDLED_LANGUAGES
@@ -43,7 +46,7 @@ function getHighlighter(): Promise<Highlighter> {
   if (_initPromise) return _initPromise;
 
   _initPromise = createHighlighter({
-    themes: ['vitesse-dark'],
+    themes: ['synthwave-84'],
     langs: SHIKI_LANG_IDS,
   }).then((h) => {
     _highlighter = h;
@@ -65,13 +68,13 @@ export async function highlightCode(code: string, lang: string): Promise<string>
     .replace(/>/g, '&gt;');
 
   if (lang === 'text' || !SHIKI_LANG_IDS.includes(lang)) {
-    return `<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7ca"><code>${escapedPlain}</code></pre>`;
+    return `<pre class="shiki synthwave-84" style="background-color:#2a2139;color:#f92aad"><code>${escapedPlain}</code></pre>`;
   }
 
   const h = await getHighlighter();
   try {
-    return h.codeToHtml(code, { lang, theme: 'vitesse-dark' });
+    return h.codeToHtml(code, { lang, theme: 'synthwave-84' });
   } catch {
-    return `<pre class="shiki vitesse-dark" style="background-color:#121212;color:#dbd7ca"><code>${escapedPlain}</code></pre>`;
+    return `<pre class="shiki synthwave-84" style="background-color:#2a2139;color:#f92aad"><code>${escapedPlain}</code></pre>`;
   }
 }

@@ -3,14 +3,10 @@
   position: relative;
   margin: var(--space-4) 0;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(121, 40, 202, 0.3);
   overflow: hidden;
-  background: #121212;
+  background: #2a2139;
   font-family: var(--font-mono);
-}
-
-.codeBlock.focused {
-  border-color: var(--border-default);
 }
 
 /* ─── Header bar ─────────────────────────────────────────── */
@@ -19,11 +15,11 @@
   align-items: center;
   justify-content: flex-end;
   padding: 4px var(--space-2);
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(121, 40, 202, 0.2);
 }
 
-/* ─── Language selector ──────────────────────────────────── */
+/* ─── Language selector trigger ─────────────────────────── */
 .langTrigger {
   display: flex;
   align-items: center;
@@ -31,7 +27,7 @@
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  color: rgba(249, 42, 173, 0.7);
   font-family: var(--font-mono);
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
@@ -39,11 +35,11 @@
 }
 
 .langTrigger:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-secondary);
+  background: rgba(249, 42, 173, 0.1);
+  color: #f92aad;
 }
 
-/* ─── Language dropdown ──────────────────────────────────── */
+/* ─── Language dropdown content ─────────────────────────── */
 .langContent {
   background: var(--bg-overlay);
   border: 1px solid var(--border-default);
@@ -93,19 +89,22 @@
 /* ─── Code body ──────────────────────────────────────────── */
 .codeBody {
   position: relative;
-  min-height: 40px;
+  /* min-height ensures the block has space even when empty */
+  min-height: 44px;
 }
 
-/* Shiki overlay — shown when not focused */
+/* ─── Shiki overlay ──────────────────────────────────────── */
+/* Always on top, non-interactive — pure visual layer */
 .shikiOverlay {
   position: absolute;
   inset: 0;
-  z-index: 1;
-  cursor: text;
-  overflow: auto;
+  z-index: 2;
+  pointer-events: none; /* all clicks / cursor events pass through to editable content */
+  overflow: hidden;
+  user-select: none;
 }
 
-/* Normalize Shiki's output to match our layout */
+/* Normalise Shiki's <pre> so it exactly matches the NodeViewContent dimensions */
 .shikiOverlay :global(pre.shiki) {
   margin: 0;
   padding: var(--space-4);
@@ -114,35 +113,46 @@
   line-height: var(--leading-relaxed);
   font-family: var(--font-mono);
   white-space: pre;
+  overflow: visible;
 }
 
 .shikiOverlay :global(pre.shiki code) {
   background: transparent;
+  border: none;
+  padding: 0;
   font-size: inherit;
   font-family: inherit;
+  white-space: pre;
+  color: inherit;
 }
 
-/* Editable code — shown when focused */
+/* ─── Editable content ───────────────────────────────────── */
+/* Always rendered so TipTap manages cursor/selection normally.
+   The text is transparent so the Shiki overlay colours show through. */
 .codeEditable {
-  display: block;
+  position: relative;
+  z-index: 1;
 }
 
-.codeEditable :global(.ProseMirror) {
-  outline: none;
-}
-
-.codeEditable :global(pre) {
-  margin: 0;
-  padding: var(--space-4);
+/* Target NodeViewContent's inner div */
+.codeEditable :global([data-node-view-content]) {
+  white-space: pre;
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   line-height: var(--leading-relaxed);
-  font-family: var(--font-mono);
-  color: #dbd7ca;
-  white-space: pre;
-  min-height: 40px;
+  padding: var(--space-4);
+  /* Text transparent: Shiki overlay provides the visual text/colours */
+  color: transparent;
+  /* Cursor is always visible */
+  caret-color: #ff79c6;
+  outline: none;
+  min-height: 44px;
+  overflow-x: auto;
 }
 
-/* Match height to Shiki overlay when hidden */
-.codeHidden {
-  visibility: hidden;
+/* When text is selected, make it legible against the selection highlight */
+.codeEditable :global([data-node-view-content])::selection,
+.codeEditable :global([data-node-view-content] *)::selection {
+  color: transparent;
+  background: rgba(249, 42, 173, 0.25);
 }

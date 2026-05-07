@@ -4,72 +4,40 @@ import type { NodeViewProps } from '@tiptap/react';
 import CodeBlock from '@tiptap/extension-code-block';
 import * as Select from '@radix-ui/react-select';
 import { CaretDown, Check } from '@phosphor-icons/react';
-import clsx from 'clsx';
 import { highlightCode, BUNDLED_LANGUAGES } from '../services/shiki.service';
 import styles from './ShikiCodeBlock.module.css';
 
 // ─── NodeView component ───────────────────────────────────
+//
+// Strategy: NodeViewContent is always rendered (so TipTap manages the cursor
+// and editing normally). Its text is made transparent via CSS so it doesn't
+// visually double with the Shiki overlay. The Shiki overlay sits on top
+// with pointer-events:none so all clicks/cursor events pass straight through
+// to the editable content. Highlighting is always visible while editing.
 
-function ShikiCodeBlockView({
-  node,
-  updateAttributes,
-  editor,
-  getPos,
-  selected,
-}: NodeViewProps) {
+function ShikiCodeBlockView({ node, updateAttributes }: NodeViewProps) {
   const [highlightedHtml, setHighlightedHtml] = useState('');
-  const [cursorInside, setCursorInside] = useState(false);
   const code = node.textContent;
   const lang = (node.attrs.language as string | null) ?? 'text';
   const labelText = BUNDLED_LANGUAGES.find((l) => l.value === lang)?.label ?? lang;
-  // Used to debounce highlight updates
+
+  // Debounce highlight updates so rapid typing doesn't flood Shiki
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Track whether the editor cursor is inside this node
-  useEffect(() => {
-    function check() {
-      const pos = getPos();
-      if (pos === undefined) { setCursorInside(false); return; }
-      const { from, to } = editor.state.selection;
-      const nodeEnd = pos + node.nodeSize;
-      setCursorInside(from > pos && to <= nodeEnd);
-    }
-
-    editor.on('selectionUpdate', check);
-    editor.on('focus', check);
-    // When editor loses focus entirely, we're no longer "inside"
-    const handleBlur = () => setCursorInside(false);
-    editor.on('blur', handleBlur);
-
-    return () => {
-      editor.off('selectionUpdate', check);
-      editor.off('focus', check);
-      editor.off('blur', handleBlur);
-    };
-  }, [editor, getPos, node.nodeSize]);
-
-  // Re-highlight when code or lang changes (debounced 150ms)
   useEffect(() => {
     if (highlightTimer.current) clearTimeout(highlightTimer.current);
     highlightTimer.current = setTimeout(() => {
       highlightCode(code, lang).then(setHighlightedHtml);
-    }, 150);
+    }, 120);
     return () => {
       if (highlightTimer.current) clearTimeout(highlightTimer.current);
     };
   }, [code, lang]);
 
-  const isActive = selected || cursorInside;
-
-  function handleOverlayClick() {
-    const pos = getPos();
-    if (pos === undefined) return;
-    editor.chain().focus().setTextSelection(pos + 1).run();
-  }
-
   return (
     <NodeViewWrapper>
-      <div className={clsx(styles.codeBlock, isActive && styles.focused)}>
+      <div className={styles.codeBlock}>
+
         {/* Header with language selector */}
         <div className={styles.header} contentEditable={false}>
           <Select.Root
@@ -101,20 +69,21 @@ function ShikiCodeBlockView({
 
         {/* Code body */}
         <div className={styles.codeBody}>
-          {/* Shiki highlighted overlay — visible when not focused */}
-          {!isActive && highlightedHtml && (
+          {/* Shiki overlay — always on top, pointer-events:none so editing works normally */}
+          {highlightedHtml && (
             <div
               className={styles.shikiOverlay}
               // eslint-disable-next-line react/no-danger
               dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-              onClick={handleOverlayClick}
+              aria-hidden="true"
             />
           )}
-          {/* TipTap editable content — visible when focused, hidden (but present) when not */}
-          <div className={clsx(styles.codeEditable, !isActive && styles.codeHidden)}>
+          {/* TipTap editable content — text is transparent so Shiki colors show through */}
+          <div className={styles.codeEditable}>
             <NodeViewContent />
           </div>
         </div>
+
       </div>
     </NodeViewWrapper>
   );
@@ -128,13 +97,23 @@ export const ShikiCodeBlock = CodeBlock.extend({
       ...this.parent?.(),
       language: {
         default: null,
-        parseHTML: (el) =>
-          el.getAttribute('data-language') ??
-          el.getAttribute('class')
-            ?.split(' ')
-            .find((c) => c.startsWith('language-'))
-            ?.replace('language-', '') ??
-          null,
+        parseHTML: (el) => {
+          // 1. Explicit data attribute (set by renderHTML below)
+          const fromAttr = el.getAttribute('data-language');
+          if (fromAttr) return fromAttr;
+          // 2. Standard markdown-it output: <pre><code class="language-*">
+          //    The class lives on the inner <code>, not on <pre>.
+          const classSource =
+            el.firstElementChild?.className ?? // <code> inside <pre>
+            el.className ??
+            '';
+          return (
+            classSource
+              .split(' ')
+              .find((c) => c.startsWith('language-'))
+              ?.replace('language-', '') ?? null
+          );
+        },
         renderHTML: (attrs) =>
           attrs.language ? { 'data-language': attrs.language } : {},
       },

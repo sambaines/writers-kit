@@ -16,11 +16,12 @@ import {
   Eye, PencilLine, SidebarSimple, Feather,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
-import { useVaultData } from '../../store/vault.store';
+import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import {
   scheduleSave,
   cancelScheduledSave,
+  saveEntity,
   preprocessMarkdownForWikiLinks,
 } from '../../services/editor.service';
 import { WikiLink } from '../../extensions/WikiLink';
@@ -150,10 +151,26 @@ export default function EditorPane() {
     }
 
     if (activeEntity.id === prevEntityIdRef.current) return;
-    prevEntityIdRef.current = activeEntity.id;
 
-    // Flush any pending save for the previous entity
-    cancelScheduledSave();
+    // ── Flush any pending save for the entity we're switching AWAY from ──
+    // cancelScheduledSave alone would discard unsaved changes (e.g. language
+    // set via dropdown). Instead, read the current editor state and save
+    // immediately before loading the next entity.
+    const prevId = prevEntityIdRef.current;
+    if (prevId) {
+      const prevEntity = useVaultStore.getState().entities.find((e) => e.id === prevId);
+      if (prevEntity) {
+        const title    = titleRef.current?.value ?? prevEntity.title;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const markdown = (editor.storage as any).markdown?.getMarkdown?.() ?? '';
+        cancelScheduledSave();
+        void saveEntity(prevEntity, title, markdown);
+      } else {
+        cancelScheduledSave();
+      }
+    }
+
+    prevEntityIdRef.current = activeEntity.id;
 
     // Preprocess body to convert [[WikiLinks]] to parseable HTML
     const preprocessed = preprocessMarkdownForWikiLinks(activeEntity.body);
