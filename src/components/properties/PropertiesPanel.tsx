@@ -1,27 +1,45 @@
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import {
-  X, User, Hash, Calendar, ToggleLeft, Tag, TextT,
+  X, Hash, Calendar, ToggleLeft, Tag, TextT,
   ArrowUpRight, TreeStructure, ArrowsOut,
   FileText, Clock, PencilLine, Eye,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
+import { useVaultData } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
+import DynamicIcon from '../ui/DynamicIcon';
 import styles from './PropertiesPanel.module.css';
 
-const MOCK_FIELDS = [
-  { key: 'species',     label: 'Species',     value: 'Human (Dúnedain)', type: 'text'    },
-  { key: 'born',        label: 'Born',         value: '2931 TA',         type: 'date'    },
-  { key: 'died',        label: 'Died',         value: '120 FO',          type: 'date'    },
-  { key: 'alive',       label: 'Alive',        value: 'false',           type: 'boolean' },
-  { key: 'affiliation', label: 'Affiliation',  value: 'Fellowship',      type: 'text'    },
-  { key: 'tags',        label: 'Tags',         value: 'ranger, king, protagonist', type: 'tags' },
-];
+function formatDate(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
 
-const MOCK_RELATIONS = [
-  { kind: 'Child of',    title: 'Middle-Earth', type: 'World'     },
-  { kind: 'Related to',  title: 'Gandalf',      type: 'Character' },
-  { kind: 'Related to',  title: 'Arwen',        type: 'Character' },
-];
+function relativeTime(iso: string): string {
+  try {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60_000);
+    if (mins < 1)   return 'just now';
+    if (mins < 60)  return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24)   return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  } catch {
+    return iso;
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function FieldIcon({ type }: { type: string }) {
   const size = 12;
@@ -39,29 +57,54 @@ export default function PropertiesPanel() {
     useShallow((s) => ({
       activeEntityId:         s.activeEntityId,
       setPropertiesPanelOpen: s.setPropertiesPanelOpen,
-    }))
+    })),
   );
+  const { entities, schemas } = useVaultData();
 
-  const hasEntity = !!activeEntityId;
+  const entity = entities.find((e) => e.id === activeEntityId) ?? null;
+  const schema = entity ? schemas.find((s) => s.name === entity.type) : null;
+
+  // User-defined field values from frontmatter (excluding system __ fields and _ relation fields)
+  const userFields = schema?.fields.map((field) => ({
+    ...field,
+    value: entity?.frontmatter[field.key],
+  })) ?? [];
+
+  // Relation fields from frontmatter
+  const relations = entity
+    ? [
+        ...((entity.frontmatter._parentOf  as string[] | undefined) ?? []).map((t) => ({ kind: 'Parent of',  target: t })),
+        ...((entity.frontmatter._childOf   as string[] | undefined) ?? []).map((t) => ({ kind: 'Child of',   target: t })),
+        ...((entity.frontmatter._siblingOf as string[] | undefined) ?? []).map((t) => ({ kind: 'Sibling of', target: t })),
+        ...((entity.frontmatter._relatedTo as string[] | undefined) ?? []).map((t) => ({ kind: 'Related to', target: t })),
+      ]
+    : [];
 
   return (
     <div className={styles.panel}>
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerMeta}>
-          {hasEntity ? (
+          {entity ? (
             <>
-              {/* Icon swatch — placeholder for Phase 4 icon picker */}
-              <button className={styles.iconSwatch} aria-label="Change icon">
-                <User size={16} weight="duotone" color="var(--accent-text)" />
+              <button
+                className={styles.iconSwatch}
+                aria-label="Change icon"
+                style={{ background: schema ? `${schema.color}20` : undefined }}
+              >
+                <DynamicIcon
+                  name={entity.icon ?? schema?.icon ?? 'File'}
+                  size={15}
+                  weight="duotone"
+                  color={entity.color ?? schema?.color ?? 'var(--accent-text)'}
+                />
               </button>
-              {/* Color swatch — placeholder for Phase 4 color picker */}
               <button
                 className={styles.colorSwatch}
-                style={{ background: '#7A6DF4' }}
+                style={{ background: entity.color ?? schema?.color ?? 'var(--accent)' }}
                 aria-label="Change color"
               />
-              <span className={styles.headerTitle}>Aragorn</span>
+              <span className={styles.headerTitle}>{entity.title}</span>
             </>
           ) : (
             <span className={styles.headerEmpty}>Properties</span>
@@ -76,63 +119,79 @@ export default function PropertiesPanel() {
         </button>
       </div>
 
-      {hasEntity && (
+      {entity && schema && (
         <div className={styles.typeBadge}>
-          <User size={11} />
-          <span>Character</span>
+          <DynamicIcon name={schema.icon} size={11} color={schema.color} />
+          <span style={{ color: schema.color }}>{entity.type}</span>
         </div>
       )}
 
       <ScrollArea.Root className={styles.scrollRoot}>
         <ScrollArea.Viewport className={styles.scrollViewport}>
-          {hasEntity ? (
+          {entity ? (
             <>
-              {/* Fields */}
-              <section className={styles.section}>
-                <div className={styles.sectionHeader}>Properties</div>
-                <div className={styles.fields}>
-                  {MOCK_FIELDS.map((field) => (
-                    <div key={field.key} className={styles.field}>
-                      <div className={styles.fieldLabel}>
-                        <FieldIcon type={field.type} />
-                        <span>{field.label}</span>
-                      </div>
-                      <div className={styles.fieldValue}>
-                        {field.type === 'boolean' ? (
-                          <span className={field.value === 'true' ? styles.boolTrue : styles.boolFalse}>
-                            {field.value}
-                          </span>
-                        ) : field.type === 'tags' ? (
-                          <div className={styles.tags}>
-                            {field.value.split(', ').map((tag) => (
-                              <span key={tag} className={styles.tag}>{tag}</span>
-                            ))}
+              {/* Schema-defined fields */}
+              {userFields.length > 0 && (
+                <section className={styles.section}>
+                  <div className={styles.sectionHeader}>Properties</div>
+                  <div className={styles.fields}>
+                    {userFields.map((field) => {
+                      const rawVal = field.value;
+                      const isEmpty = rawVal === undefined || rawVal === null || rawVal === '';
+                      return (
+                        <div key={field.key} className={styles.field}>
+                          <div className={styles.fieldLabel}>
+                            <FieldIcon type={field.type} />
+                            <span>{field.label}</span>
                           </div>
-                        ) : (
-                          <span>{field.value}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <div className={styles.divider} />
+                          <div className={styles.fieldValue}>
+                            {isEmpty ? (
+                              <span className={styles.fieldEmpty}>—</span>
+                            ) : field.type === 'boolean' ? (
+                              <span className={rawVal ? styles.boolTrue : styles.boolFalse}>
+                                {String(rawVal)}
+                              </span>
+                            ) : field.type === 'tags' ? (
+                              <div className={styles.tags}>
+                                {String(rawVal).split(/,\s*/).map((tag) => (
+                                  <span key={tag} className={styles.tag}>{tag}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span>{String(rawVal)}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
 
               {/* Relations */}
+              <div className={styles.divider} />
               <section className={styles.section}>
                 <div className={styles.sectionHeader}>Relations</div>
                 <div className={styles.relations}>
-                  {MOCK_RELATIONS.map((rel, i) => (
-                    <div key={i} className={styles.relation}>
-                      <span className={styles.relKind}>{rel.kind}</span>
-                      <button className={styles.relLink}>
-                        <ArrowUpRight size={11} />
-                        <span>{rel.title}</span>
-                        <span className={styles.relType}>{rel.type}</span>
-                      </button>
-                    </div>
-                  ))}
+                  {relations.length === 0 ? (
+                    <span className={styles.emptyHint}>No relations</span>
+                  ) : (
+                    relations.map((rel, i) => {
+                      const target = entities.find((e) => e.id === rel.target);
+                      return (
+                        <div key={i} className={styles.relation}>
+                          <span className={styles.relKind}>{rel.kind}</span>
+                          <button className={styles.relLink}>
+                            <ArrowUpRight size={11} />
+                            <span>{target?.title ?? rel.target}</span>
+                            {target && (
+                              <span className={styles.relType}>{target.type}</span>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
                   <button className={styles.addRelation}>
                     <TreeStructure size={12} />
                     <span>Add relation</span>
@@ -148,27 +207,29 @@ export default function PropertiesPanel() {
                 <div className={styles.stats}>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><TextT size={12} /> Words</span>
-                    <span className={styles.statValue}>1,234</span>
+                    <span className={styles.statValue}>{entity.wordCount.toLocaleString()}</span>
                   </div>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><Hash size={12} /> Characters</span>
-                    <span className={styles.statValue}>6,789</span>
+                    <span className={styles.statValue}>{entity.charCount.toLocaleString()}</span>
                   </div>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><ArrowsOut size={12} /> File size</span>
-                    <span className={styles.statValue}>12.3 KB</span>
+                    <span className={styles.statValue}>{formatFileSize(entity.fileSize)}</span>
                   </div>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><Eye size={12} /> Read time</span>
-                    <span className={styles.statValue}>~5 min</span>
+                    <span className={styles.statValue}>
+                      ~{Math.max(1, Math.round(entity.wordCount / 200))} min
+                    </span>
                   </div>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><PencilLine size={12} /> Created</span>
-                    <span className={styles.statValue}>3 Jan 2025</span>
+                    <span className={styles.statValue}>{formatDate(entity.createdAt)}</span>
                   </div>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><Clock size={12} /> Modified</span>
-                    <span className={styles.statValue}>2 hours ago</span>
+                    <span className={styles.statValue}>{relativeTime(entity.modifiedAt)}</span>
                   </div>
                 </div>
               </section>

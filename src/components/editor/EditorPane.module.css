@@ -56,9 +56,14 @@
   flex-shrink: 0;
 }
 
-.toolbarBtn:hover {
+.toolbarBtn:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-secondary);
+}
+
+.toolbarBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .toolbarBtnActive {
@@ -150,33 +155,235 @@
   line-height: var(--leading-relaxed);
 }
 
-/* ─── Editor content ────────────────────────────────────── */
+/* ─── Editor content area ───────────────────────────────── */
 .editorContent {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }
 
-.richEditor {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-8) var(--space-12);
+/* ─── Title input ───────────────────────────────────────── */
+.titleWrapper {
+  padding: var(--space-8) var(--space-12) 0;
   max-width: 760px;
-  margin: 0 auto;
   width: 100%;
+  margin: 0 auto;
+  flex-shrink: 0;
 }
 
-.editorPlaceholder {
+.titleInput {
+  width: 100%;
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  caret-color: var(--accent);
+  font-family: inherit;
+}
+
+.titleInput::placeholder {
+  color: var(--text-disabled);
+}
+
+/* ─── TipTap editor wrapper ─────────────────────────────── */
+.editorWrap {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
+  flex-direction: column;
 }
 
-.placeholderText {
-  font-size: var(--text-sm);
+/* ─── ProseMirror content ───────────────────────────────── */
+.proseMirror {
+  flex: 1;
+  outline: none;
+  padding: var(--space-6) var(--space-12) var(--space-12);
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  caret-color: var(--accent);
+}
+
+/* Placeholder */
+.proseMirror :global(.is-editor-empty):first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-disabled);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* Headings */
+.proseMirror :global(h1) {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  margin: var(--space-6) 0 var(--space-3);
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.proseMirror :global(h2) {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.015em;
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--text-primary);
+}
+
+.proseMirror :global(h3) {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--text-primary);
+}
+
+.proseMirror :global(h1:first-child),
+.proseMirror :global(h2:first-child),
+.proseMirror :global(h3:first-child) {
+  margin-top: 0;
+}
+
+/* Paragraphs */
+.proseMirror :global(p) {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+}
+
+.proseMirror :global(p:last-child) {
+  margin-bottom: 0;
+}
+
+/* Bold / italic / underline / strike */
+.proseMirror :global(strong) {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.proseMirror :global(em) {
+  color: var(--text-secondary);
+}
+
+.proseMirror :global(u) {
+  text-decoration-color: var(--text-tertiary);
+}
+
+.proseMirror :global(s) {
   color: var(--text-tertiary);
+}
+
+/* Inline code */
+.proseMirror :global(code) {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-elevated);
+  color: var(--accent-text);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+}
+
+/* Blockquote */
+.proseMirror :global(blockquote) {
+  border-left: 3px solid var(--accent-border);
+  padding-left: var(--space-4);
+  margin: var(--space-4) 0;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* Lists */
+.proseMirror :global(ul),
+.proseMirror :global(ol) {
+  padding-left: var(--space-6);
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--text-secondary);
+}
+
+.proseMirror :global(li) {
+  margin: var(--space-1) 0;
+}
+
+.proseMirror :global(li > p) {
+  margin: 0;
+}
+
+/* Task list */
+.proseMirror :global(ul[data-type="taskList"]) {
+  list-style: none;
+  padding-left: var(--space-1);
+}
+
+.proseMirror :global(li[data-type="taskItem"]) {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.proseMirror :global(li[data-type="taskItem"] > label) {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.proseMirror :global(li[data-type="taskItem"] > div) {
+  flex: 1;
+}
+
+.proseMirror :global(li[data-type="taskItem"][data-checked="true"] > div) {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+/* Horizontal rule */
+.proseMirror :global(hr) {
+  border: none;
+  border-top: 1px solid var(--border-default);
+  margin: var(--space-6) 0;
+}
+
+/* Links */
+.proseMirror :global(a) {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-border);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.proseMirror :global(a:hover) {
+  text-decoration-color: var(--accent);
+}
+
+/* ─── WikiLink styles ────────────────────────────────────── */
+.proseMirror :global(.wiki-link) {
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-xs);
+  padding: 0 4px;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.proseMirror :global(.wiki-link:hover) {
+  background: var(--accent-border);
+}
+
+/* Empty placeholder in editor */
+.editorEmpty::before {
+  color: var(--text-disabled) !important;
 }
 
 /* ─── Raw editor ────────────────────────────────────────── */
@@ -184,18 +391,28 @@
   flex: 1;
   overflow: hidden;
   display: flex;
+  padding: var(--space-6) var(--space-8);
 }
 
 .rawTextarea {
   flex: 1;
-  padding: var(--space-6) var(--space-8);
+  padding: var(--space-4) var(--space-6);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   line-height: var(--leading-relaxed);
   color: var(--text-secondary);
-  background: var(--bg-base);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   resize: none;
   width: 100%;
   height: 100%;
   tab-size: 2;
+  outline: none;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.rawTextarea:focus {
+  border-color: var(--border-default);
 }

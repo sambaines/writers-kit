@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { ViewMode, EditorView } from '../types';
 
+export type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+
 interface UIState {
   /* Navigation */
   activeView: ViewMode;
@@ -12,6 +14,7 @@ interface UIState {
 
   /* Editor state */
   editorView: EditorView;
+  saveStatus: SaveStatus;
 
   /* Actions */
   setActiveView: (view: ViewMode) => void;
@@ -20,6 +23,7 @@ interface UIState {
   togglePropertiesPanel: () => void;
   setPropertiesPanelOpen: (open: boolean) => void;
   setEditorView: (view: EditorView) => void;
+  setSaveStatus: (status: SaveStatus) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -28,6 +32,7 @@ export const useUIStore = create<UIState>((set) => ({
   activeEntityId: null,
   propertiesPanelOpen: true,
   editorView: 'rich',
+  saveStatus: 'idle',
 
   setActiveView: (view) => set({ activeView: view }),
   setActiveTypeId: (id) => set({ activeTypeId: id, activeEntityId: null }),
@@ -36,4 +41,5 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({ propertiesPanelOpen: !state.propertiesPanelOpen })),
   setPropertiesPanelOpen: (open) => set({ propertiesPanelOpen: open }),
   setEditorView: (view) => set({ editorView: view }),
+  setSaveStatus: (status) => set({ saveStatus: status }),
 }));

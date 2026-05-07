@@ -1,0 +1,148 @@
+/* ─── Code block wrapper ─────────────────────────────────── */
+.codeBlock {
+  position: relative;
+  margin: var(--space-4) 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  background: #121212;
+  font-family: var(--font-mono);
+}
+
+.codeBlock.focused {
+  border-color: var(--border-default);
+}
+
+/* ─── Header bar ─────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px var(--space-2);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Language selector ──────────────────────────────────── */
+.langTrigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  user-select: none;
+}
+
+.langTrigger:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+/* ─── Language dropdown ──────────────────────────────────── */
+.langContent {
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
+  z-index: var(--z-popover);
+  max-height: 280px;
+  overflow: hidden;
+}
+
+.langViewport {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.langItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-3);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.langItem[data-highlighted] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.langItem[data-state='checked'] {
+  color: var(--accent-text);
+}
+
+.langItemIndicator {
+  width: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Code body ──────────────────────────────────────────── */
+.codeBody {
+  position: relative;
+  min-height: 40px;
+}
+
+/* Shiki overlay — shown when not focused */
+.shikiOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  cursor: text;
+  overflow: auto;
+}
+
+/* Normalize Shiki's output to match our layout */
+.shikiOverlay :global(pre.shiki) {
+  margin: 0;
+  padding: var(--space-4);
+  background: transparent !important;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  font-family: var(--font-mono);
+  white-space: pre;
+}
+
+.shikiOverlay :global(pre.shiki code) {
+  background: transparent;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+/* Editable code — shown when focused */
+.codeEditable {
+  display: block;
+}
+
+.codeEditable :global(.ProseMirror) {
+  outline: none;
+}
+
+.codeEditable :global(pre) {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  font-family: var(--font-mono);
+  color: #dbd7ca;
+  white-space: pre;
+  min-height: 40px;
+}
+
+/* Match height to Shiki overlay when hidden */
+.codeHidden {
+  visibility: hidden;
+}

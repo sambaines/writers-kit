@@ -92,3 +92,38 @@
   font-size: var(--text-xs);
   color: var(--color-success);
 }
+
+/* ─── Save status ────────────────────────────────────────── */
+.saveStatus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.saveStatus[data-status='saved'] {
+  color: var(--color-success);
+}
+
+.saveStatus[data-status='error'] {
+  color: var(--color-error);
+}
+
+.saveStatus[data-status='unsaved'] {
+  color: var(--text-tertiary);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.saveDot {
+  animation: blink 1s ease-in-out infinite;
+  color: var(--accent);
+}
+
+.saveDotUnsaved {
+  color: var(--text-disabled);
+}
