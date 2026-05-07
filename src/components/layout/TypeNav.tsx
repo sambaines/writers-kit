@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import * as ContextMenu from '@radix-ui/react-context-menu';
 import {
   Feather, Files, Archive, Plus, Gear, FolderOpen,
-  DotsThree, PencilSimple, Trash, ChartLine,
+  PencilSimple, Trash, ChartLine,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -117,56 +117,48 @@ export default function TypeNav() {
                   ).length;
                   const isActive = activeTypeId === schema.id;
                   return (
-                    <div key={schema.id} className={styles.typeRow}>
-                      <button
-                        className={clsx(styles.navItem, styles.typeItem, isActive && styles.active)}
-                        onClick={() => handleNavClick(schema.id)}
-                      >
-                        <span
-                          className={styles.typeDot}
-                          style={{ background: schema.color }}
-                        />
-                        <DynamicIcon
-                          name={schema.icon}
-                          size={14}
-                          weight={isActive ? 'fill' : 'regular'}
-                          color={isActive ? schema.color : undefined}
-                        />
-                        <span>{schema.name}</span>
-                        <span className={styles.count}>{count}</span>
-                      </button>
-
-                      <DropdownMenu.Root>
-                        <DropdownMenu.Trigger asChild>
+                    <ContextMenu.Root key={schema.id}>
+                      <ContextMenu.Trigger asChild>
+                        <div className={styles.typeRow}>
                           <button
-                            className={styles.typeMenuBtn}
-                            aria-label={`${schema.name} options`}
-                            onClick={(e) => e.stopPropagation()}
+                            className={clsx(styles.navItem, styles.typeItem, isActive && styles.active)}
+                            onClick={() => handleNavClick(schema.id)}
                           >
-                            <DotsThree size={14} weight="bold" />
+                            <span
+                              className={styles.typeDot}
+                              style={{ background: schema.color }}
+                            />
+                            <DynamicIcon
+                              name={schema.icon}
+                              size={14}
+                              weight={isActive ? 'fill' : 'regular'}
+                              color={isActive ? schema.color : undefined}
+                            />
+                            <span>{schema.name}</span>
+                            <span className={styles.count}>{count}</span>
                           </button>
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Portal>
-                          <DropdownMenu.Content className={styles.dropMenu} side="right" sideOffset={4}>
-                            <DropdownMenu.Item
-                              className={styles.dropItem}
-                              onSelect={() => setEditSchema(schema)}
-                            >
-                              <PencilSimple size={13} />
-                              <span>Edit type</span>
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Separator className={styles.dropSep} />
-                            <DropdownMenu.Item
-                              className={`${styles.dropItem} ${styles.dropItemDanger}`}
-                              onSelect={() => handleDeleteSchema(schema)}
-                            >
-                              <Trash size={13} />
-                              <span>Delete type</span>
-                            </DropdownMenu.Item>
-                          </DropdownMenu.Content>
-                        </DropdownMenu.Portal>
-                      </DropdownMenu.Root>
-                    </div>
+                        </div>
+                      </ContextMenu.Trigger>
+                      <ContextMenu.Portal>
+                        <ContextMenu.Content className={styles.dropMenu}>
+                          <ContextMenu.Item
+                            className={styles.dropItem}
+                            onSelect={() => setEditSchema(schema)}
+                          >
+                            <PencilSimple size={13} />
+                            <span>Edit type</span>
+                          </ContextMenu.Item>
+                          <ContextMenu.Separator className={styles.dropSep} />
+                          <ContextMenu.Item
+                            className={`${styles.dropItem} ${styles.dropItemDanger}`}
+                            onSelect={() => handleDeleteSchema(schema)}
+                          >
+                            <Trash size={13} />
+                            <span>Delete type</span>
+                          </ContextMenu.Item>
+                        </ContextMenu.Content>
+                      </ContextMenu.Portal>
+                    </ContextMenu.Root>
                   );
                 })
               )}

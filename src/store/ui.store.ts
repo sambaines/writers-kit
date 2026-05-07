@@ -14,6 +14,7 @@ interface UIState {
   propertiesPanelOpen: boolean;
   activeRightPanel: RightPanel;
   askDrawerOpen: boolean;
+  commandPaletteOpen: boolean;
 
   /* Editor state */
   editorView: EditorView;
@@ -27,6 +28,7 @@ interface UIState {
   setPropertiesPanelOpen: (open: boolean) => void;
   setActiveRightPanel: (panel: RightPanel) => void;
   setAskDrawerOpen: (open: boolean) => void;
+  setCommandPaletteOpen: (open: boolean) => void;
   setEditorView: (view: EditorView) => void;
   setSaveStatus: (status: SaveStatus) => void;
 }
@@ -38,6 +40,7 @@ export const useUIStore = create<UIState>((set) => ({
   propertiesPanelOpen: true,
   activeRightPanel: 'properties',
   askDrawerOpen: false,
+  commandPaletteOpen: false,
   editorView: 'rich',
   saveStatus: 'idle',
 
@@ -49,6 +52,7 @@ export const useUIStore = create<UIState>((set) => ({
   setPropertiesPanelOpen: (open) => set({ propertiesPanelOpen: open }),
   setActiveRightPanel: (panel) => set({ activeRightPanel: panel, propertiesPanelOpen: true }),
   setAskDrawerOpen: (open) => set({ askDrawerOpen: open }),
+  setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setEditorView: (view) => set({ editorView: view }),
   setSaveStatus: (status) => set({ saveStatus: status }),
 }));

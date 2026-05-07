@@ -1,5 +1,6 @@
 import * as ScrollArea from '@radix-ui/react-scroll-area';
-import { MagnifyingGlass, Plus } from '@phosphor-icons/react';
+import * as ContextMenu from '@radix-ui/react-context-menu';
+import { Plus, ArrowCounterClockwise, Archive, Trash } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useUIStore } from '../../store/ui.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -9,7 +10,6 @@ import clsx from 'clsx';
 import styles from './EntityList.module.css';
 
 export default function EntityList() {
-  const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
 
   const { activeTypeId, activeEntityId, setActiveEntityId } = useUIStore(
@@ -21,7 +21,10 @@ export default function EntityList() {
   );
 
   const { schemas, entities } = useVaultData();
-  const createEntity = useVaultStore((s) => s.createEntity);
+  const createEntity  = useVaultStore((s) => s.createEntity);
+  const archiveEntity = useVaultStore((s) => s.archiveEntity);
+  const restoreEntity = useVaultStore((s) => s.restoreEntity);
+  const deleteEntity  = useVaultStore((s) => s.deleteEntity);
 
   if (!activeTypeId) {
     return (
@@ -45,12 +48,6 @@ export default function EntityList() {
     if (activeTypeId === '__archive') return e.archived;
     return e.type === activeSchema?.name && !e.archived;
   });
-
-  // Search
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    filtered = filtered.filter((e) => e.title.toLowerCase().includes(q));
-  }
 
   const label =
     activeTypeId === '__all'     ? 'All Files' :
@@ -83,25 +80,12 @@ export default function EntityList() {
         <span className={styles.headerCount}>{filtered.length}</span>
       </div>
 
-      {/* Search */}
-      <div className={styles.searchRow}>
-        <MagnifyingGlass size={13} className={styles.searchIcon} />
-        <input
-          className={styles.searchInput}
-          placeholder={`Search ${label.toLowerCase()}…`}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
       {/* Entity list */}
       <ScrollArea.Root className={styles.scrollRoot}>
         <ScrollArea.Viewport className={styles.scrollViewport}>
           {filtered.length === 0 ? (
             <div className={styles.empty}>
-              <span className={styles.emptyText}>
-                {search ? 'No matches' : 'No files yet'}
-              </span>
+              <span className={styles.emptyText}>No files yet</span>
             </div>
           ) : (
             <div className={styles.entityItems}>
@@ -109,26 +93,67 @@ export default function EntityList() {
                 const schema = schemas.find((s) => s.name === entity.type);
                 const eIcon  = entity.icon  ?? schema?.icon  ?? 'File';
                 const eColor = entity.color ?? schema?.color ?? 'var(--text-tertiary)';
+                const isArchived = entity.archived;
 
                 return (
-                  <button
-                    key={entity.id}
-                    className={clsx(
-                      styles.entityItem,
-                      activeEntityId === entity.id && styles.active,
-                    )}
-                    onClick={() => setActiveEntityId(entity.id)}
-                  >
-                    <span className={styles.entityIcon}>
-                      <DynamicIcon
-                        name={eIcon}
-                        size={13}
-                        color={activeEntityId === entity.id ? eColor : undefined}
-                        weight={activeEntityId === entity.id ? 'fill' : 'regular'}
-                      />
-                    </span>
-                    <span className={styles.entityTitle}>{entity.title}</span>
-                  </button>
+                  <ContextMenu.Root key={entity.id}>
+                    <ContextMenu.Trigger asChild>
+                      <button
+                        className={clsx(
+                          styles.entityItem,
+                          activeEntityId === entity.id && styles.active,
+                        )}
+                        onClick={() => setActiveEntityId(entity.id)}
+                      >
+                        <span className={styles.entityIcon}>
+                          <DynamicIcon
+                            name={eIcon}
+                            size={13}
+                            color={activeEntityId === entity.id ? eColor : undefined}
+                            weight={activeEntityId === entity.id ? 'fill' : 'regular'}
+                          />
+                        </span>
+                        <span className={styles.entityTitle}>{entity.title}</span>
+                      </button>
+                    </ContextMenu.Trigger>
+                    <ContextMenu.Portal>
+                      <ContextMenu.Content className={styles.ctxMenu}>
+                        {isArchived ? (
+                          <ContextMenu.Item
+                            className={styles.ctxItem}
+                            onSelect={() => void restoreEntity(entity)}
+                          >
+                            <ArrowCounterClockwise size={13} />
+                            <span>Restore</span>
+                          </ContextMenu.Item>
+                        ) : (
+                          <ContextMenu.Item
+                            className={styles.ctxItem}
+                            onSelect={() => {
+                              void archiveEntity(entity);
+                              if (activeEntityId === entity.id) setActiveEntityId(null);
+                            }}
+                          >
+                            <Archive size={13} />
+                            <span>Archive</span>
+                          </ContextMenu.Item>
+                        )}
+                        <ContextMenu.Separator className={styles.ctxSep} />
+                        <ContextMenu.Item
+                          className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
+                          onSelect={() => {
+                            if (confirm(`Delete "${entity.title}"? This cannot be undone.`)) {
+                              void deleteEntity(entity);
+                              if (activeEntityId === entity.id) setActiveEntityId(null);
+                            }
+                          }}
+                        >
+                          <Trash size={13} />
+                          <span>Delete</span>
+                        </ContextMenu.Item>
+                      </ContextMenu.Content>
+                    </ContextMenu.Portal>
+                  </ContextMenu.Root>
                 );
               })}
             </div>

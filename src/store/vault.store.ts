@@ -9,6 +9,7 @@ import {
   createSchemaFile,
   deleteSchemaFile,
   createEntityFile,
+  deleteEntityFile,
   updateEntityFrontmatter,
 } from '../services/vault.service';
 
@@ -56,6 +57,9 @@ interface VaultState {
   editSchema: (schema: SchemaDefinition) => Promise<void>;
   deleteSchema: (schema: SchemaDefinition) => Promise<void>;
   createEntity: (type: string, title: string) => Promise<Entity>;
+  archiveEntity: (entity: Entity) => Promise<void>;
+  restoreEntity: (entity: Entity) => Promise<void>;
+  deleteEntity: (entity: Entity) => Promise<void>;
   patchEntityFrontmatter: (entity: Entity, updates: Partial<EntityFrontmatter>) => Promise<Entity>;
   reassignEntitiesType: (fromType: string, toType: string) => Promise<void>;
   addRelation: (sourceId: string, targetId: string, kind: RelationKind) => Promise<void>;
@@ -147,6 +151,23 @@ export const useVaultStore = create<VaultState>()(
         const entity = await createEntityFile(vaultPath, type, title);
         addEntity(entity);
         return entity;
+      },
+
+      archiveEntity: async (entity) => {
+        const { patchEntityFrontmatter } = get();
+        await patchEntityFrontmatter(entity, { __archived: true });
+      },
+
+      restoreEntity: async (entity) => {
+        const { patchEntityFrontmatter } = get();
+        await patchEntityFrontmatter(entity, { __archived: false });
+      },
+
+      deleteEntity: async (entity) => {
+        const { vaultPath, removeEntity } = get();
+        if (!vaultPath) throw new Error('No vault open');
+        await deleteEntityFile(vaultPath, entity);
+        removeEntity(entity.id);
       },
 
       patchEntityFrontmatter: async (entity, updates) => {

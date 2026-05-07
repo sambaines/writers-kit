@@ -15,7 +15,7 @@ import {
   ListBullets, ListNumbers, Quotes, Code, Terminal, Link,
   ArrowCounterClockwise, ArrowClockwise,
   Eye, PencilLine, SidebarSimple, Feather, Brain,
-  Table, Image,
+  Table, Image, Archive, Trash,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -93,6 +93,8 @@ export default function EditorPane() {
   );
 
   const { entities, schemas } = useVaultData();
+  const archiveEntity = useVaultStore((s) => s.archiveEntity);
+  const deleteEntity  = useVaultStore((s) => s.deleteEntity);
   const activeEntity = entities.find((e) => e.id === activeEntityId) ?? null;
 
   // Keep a stable ref to entities/schemas for the suggestion plugin
@@ -452,22 +454,78 @@ export default function EditorPane() {
           {/* Right side */}
           <div className={styles.toolbarRight}>
             {activeEntity && (
-              <div className={clsx(styles.toolbarGroup, styles.viewToggle)}>
-                <button
-                  className={clsx(styles.viewBtn, editorView === 'rich' && styles.viewBtnActive)}
-                  onClick={handleSwitchToRich}
-                >
-                  <PencilLine size={14} />
-                  <span>Editor</span>
-                </button>
-                <button
-                  className={clsx(styles.viewBtn, editorView === 'raw' && styles.viewBtnActive)}
-                  onClick={handleSwitchToRaw}
-                >
-                  <Eye size={14} />
-                  <span>Raw</span>
-                </button>
-              </div>
+              <>
+                <div className={clsx(styles.toolbarGroup, styles.viewToggle)}>
+                  <button
+                    className={clsx(styles.viewBtn, editorView === 'rich' && styles.viewBtnActive)}
+                    onClick={handleSwitchToRich}
+                  >
+                    <PencilLine size={14} />
+                    <span>Editor</span>
+                  </button>
+                  <button
+                    className={clsx(styles.viewBtn, editorView === 'raw' && styles.viewBtnActive)}
+                    onClick={handleSwitchToRaw}
+                  >
+                    <Eye size={14} />
+                    <span>Raw</span>
+                  </button>
+                </div>
+                <div className={styles.toolbarSep} />
+                {activeEntity.archived ? (
+                  <Tooltip.Root>
+                    <Tooltip.Trigger asChild>
+                      <button
+                        className={styles.toolbarBtn}
+                        aria-label="Restore entity"
+                        onClick={() => void useVaultStore.getState().restoreEntity(activeEntity)}
+                      >
+                        <ArrowCounterClockwise size={15} />
+                      </button>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content className={styles.tooltip} sideOffset={6}>Restore</Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
+                ) : (
+                  <Tooltip.Root>
+                    <Tooltip.Trigger asChild>
+                      <button
+                        className={styles.toolbarBtn}
+                        aria-label="Archive entity"
+                        onClick={() => {
+                          void archiveEntity(activeEntity);
+                          useUIStore.getState().setActiveEntityId(null);
+                        }}
+                      >
+                        <Archive size={15} />
+                      </button>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content className={styles.tooltip} sideOffset={6}>Archive</Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
+                )}
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button
+                      className={clsx(styles.toolbarBtn, styles.toolbarBtnDanger)}
+                      aria-label="Delete entity"
+                      onClick={() => {
+                        if (confirm(`Delete "${activeEntity.title}"? This cannot be undone.`)) {
+                          void deleteEntity(activeEntity);
+                          useUIStore.getState().setActiveEntityId(null);
+                        }
+                      }}
+                    >
+                      <Trash size={15} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content className={styles.tooltip} sideOffset={6}>Delete</Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </>
             )}
             <div className={styles.toolbarSep} />
             <Tooltip.Root>

@@ -161,7 +161,6 @@
 
 .typeItem {
   flex: 1;
-  padding-right: 26px; /* make room for menu btn */
 }
 
 .typeMenuBtn {

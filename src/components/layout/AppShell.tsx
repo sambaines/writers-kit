@@ -10,6 +10,7 @@ import StatusBar from './StatusBar';
 import CommitDrawer from '../git/CommitDrawer';
 import AskDrawer from '../chat/AskDrawer';
 import UpdateBanner from './UpdateBanner';
+import CommandPalette from '../search/CommandPalette';
 import styles from './AppShell.module.css';
 import clsx from 'clsx';
 
@@ -44,6 +45,7 @@ export default function AppShell() {
       </div>
       <CommitDrawer />
       <AskDrawer />
+      <CommandPalette />
       <StatusBar />
     </div>
   );

@@ -76,6 +76,11 @@
   color: var(--accent-text);
 }
 
+.toolbarBtnDanger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
+}
+
 /* ─── View toggle ───────────────────────────────────────── */
 .viewToggle {
   background: var(--bg-elevated);

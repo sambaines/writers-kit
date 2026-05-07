@@ -330,6 +330,10 @@ export async function deleteSchemaFile(
   await deleteFile(joinPath(vaultPath, schema.filePath));
 }
 
+export async function deleteEntityFile(vaultPath: string, entity: Entity): Promise<void> {
+  await deleteFile(joinPath(vaultPath, entity.path));
+}
+
 /* ─── Entity CRUD ───────────────────────────────────────── */
 
 export async function createEntityFile(
