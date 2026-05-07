@@ -9,6 +9,7 @@ import TimelineView from '../timeline/TimelineView';
 import StatusBar from './StatusBar';
 import CommitDrawer from '../git/CommitDrawer';
 import AskDrawer from '../chat/AskDrawer';
+import UpdateBanner from './UpdateBanner';
 import styles from './AppShell.module.css';
 import clsx from 'clsx';
 
@@ -23,6 +24,7 @@ export default function AppShell() {
 
   return (
     <div className={styles.shell}>
+      <UpdateBanner />
       <div className={styles.main}>
         <TypeNav />
         {activeView === 'timeline' ? (
