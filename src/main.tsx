@@ -1,3 +1,8 @@
+// Polyfill Buffer for gray-matter (Node.js built-in not available in WebView)
+import { Buffer } from 'buffer';
+declare global { interface Window { Buffer: typeof Buffer } }
+window.Buffer = window.Buffer ?? Buffer;
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/variables.css';

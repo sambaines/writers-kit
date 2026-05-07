@@ -135,6 +135,17 @@
   color: var(--text-tertiary);
 }
 
+.devBtn {
+  color: var(--color-warning);
+  opacity: 0.6;
+}
+
+.devBtn:hover {
+  opacity: 1;
+  background: rgba(240, 164, 41, 0.08);
+  color: var(--color-warning);
+}
+
 /* ─── Tooltip ───────────────────────────────────────────── */
 .tooltip {
   background: var(--bg-overlay);

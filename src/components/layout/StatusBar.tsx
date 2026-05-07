@@ -1,6 +1,5 @@
 import { GitBranch, CheckCircle } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
-import { useShallow } from 'zustand/react/shallow';
 import styles from './StatusBar.module.css';
 
 export default function StatusBar() {
