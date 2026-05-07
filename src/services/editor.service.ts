@@ -34,10 +34,16 @@ export async function saveEntity(entity: Entity, newTitle: string, newBody: stri
   useUIStore.getState().setSaveStatus('saving');
 
   try {
+    // Merge WikiLink-derived targets into _relatedTo before writing
+    const wikiTargetIds = resolveWikiLinks(newBody, entity.id);
+    const existingRelatedTo = (entity.frontmatter._relatedTo as string[] | undefined) ?? [];
+    const mergedRelatedTo = unique([...existingRelatedTo, ...wikiTargetIds]);
+
     const updatedFm = {
       ...entity.frontmatter,
       title: newTitle,
       __modified: new Date().toISOString(),
+      _relatedTo: mergedRelatedTo,
     };
 
     const content = matter.stringify(newBody, updatedFm as Record<string, unknown>);
@@ -56,6 +62,12 @@ export async function saveEntity(entity: Entity, newTitle: string, newBody: stri
     };
     updateEntity(updated);
     useUIStore.getState().setSaveStatus('saved');
+
+    // Bidirectionally link any newly discovered WikiLink targets (fire-and-forget)
+    const newTargetIds = wikiTargetIds.filter((id) => !existingRelatedTo.includes(id));
+    if (newTargetIds.length > 0) {
+      void addBidirectionalWikiLinks(entity.id, newTargetIds, vaultPath);
+    }
   } catch (err) {
     console.error('[editor] save failed:', err);
     useUIStore.getState().setSaveStatus('error');
@@ -79,26 +91,39 @@ export async function saveRawContent(entity: Entity, rawContent: string): Promis
 
   useUIStore.getState().setSaveStatus('saving');
   try {
-    const fullPath = `${vaultPath}/${entity.path}`;
-    await writeTextFile(fullPath, rawContent);
-
-    // Re-parse so the store reflects any frontmatter edits the user made
+    // Re-parse to get frontmatter + body so we can merge WikiLinks
     const { data: fm, content: body } = matter(rawContent);
-    const trimmedBody = body.replace(/^\n/, ''); // gray-matter leaves a leading newline
+    const trimmedBody = body.replace(/^\n/, '');
+
+    const wikiTargetIds = resolveWikiLinks(trimmedBody, entity.id);
+    const existingRelatedTo = (fm._relatedTo as string[] | undefined) ?? [];
+    const mergedRelatedTo = unique([...existingRelatedTo, ...wikiTargetIds]);
+    fm._relatedTo = mergedRelatedTo;
+
+    // Re-stringify with merged relatedTo and write
+    const mergedContent = matter.stringify(trimmedBody, fm as Record<string, unknown>);
+    const fullPath = `${vaultPath}/${entity.path}`;
+    await writeTextFile(fullPath, mergedContent);
+
     const words = trimmedBody.trim().split(/\s+/).filter(Boolean).length;
     const updated: Entity = {
       ...entity,
-      title:      (fm.title      as string)  ?? entity.title,
-      type:       (fm.__type     as string)  ?? entity.type,
-      archived:   (fm.__archived as boolean) ?? entity.archived,
+      title:       (fm.title      as string)  ?? entity.title,
+      type:        (fm.__type     as string)  ?? entity.type,
+      archived:    (fm.__archived as boolean) ?? entity.archived,
       frontmatter: fm as EntityFrontmatter,
-      body:       trimmedBody,
-      wordCount:  words,
-      charCount:  trimmedBody.length,
-      modifiedAt: new Date().toISOString(),
+      body:        trimmedBody,
+      wordCount:   words,
+      charCount:   trimmedBody.length,
+      modifiedAt:  new Date().toISOString(),
     };
     updateEntity(updated);
     useUIStore.getState().setSaveStatus('saved');
+
+    const newTargetIds = wikiTargetIds.filter((id) => !existingRelatedTo.includes(id));
+    if (newTargetIds.length > 0) {
+      void addBidirectionalWikiLinks(entity.id, newTargetIds, vaultPath);
+    }
   } catch (err) {
     console.error('[editor] raw save failed:', err);
     useUIStore.getState().setSaveStatus('error');
@@ -115,4 +140,52 @@ export function preprocessMarkdownForWikiLinks(markdown: string): string {
   return markdown.replace(/\[\[([^\]]+)\]\]/g, (_, title: string) =>
     `<span data-wiki-link="${title.replace(/"/g, '&quot;')}">[[${title}]]</span>`,
   );
+}
+
+/* ─── WikiLink relation sync helpers ────────────────────── */
+
+/** Extract entity IDs referenced by [[Title]] links in a body string. */
+function resolveWikiLinks(body: string, sourceId: string): string[] {
+  const titles = [...body.matchAll(/\[\[([^\]]+)\]\]/g)].map((m) => m[1]);
+  const { entities } = useVaultStore.getState();
+  return unique(
+    titles
+      .map((title) => entities.find((e) => e.title === title && e.id !== sourceId)?.id)
+      .filter((id): id is string => id !== undefined),
+  );
+}
+
+/**
+ * After saving the source entity, update each target entity's _relatedTo to
+ * include the source. Runs asynchronously so it doesn't block the editor.
+ */
+async function addBidirectionalWikiLinks(
+  sourceId: string,
+  newTargetIds: string[],
+  vaultPath: string,
+): Promise<void> {
+  const { entities, updateEntity } = useVaultStore.getState();
+  for (const targetId of newTargetIds) {
+    const target = entities.find((e) => e.id === targetId);
+    if (!target) continue;
+    const existing = (target.frontmatter._relatedTo as string[] | undefined) ?? [];
+    if (existing.includes(sourceId)) continue;
+    const merged = unique([...existing, sourceId]);
+    const updatedFm = {
+      ...target.frontmatter,
+      _relatedTo: merged,
+      __modified: new Date().toISOString(),
+    };
+    try {
+      const content = matter.stringify(target.body, updatedFm as Record<string, unknown>);
+      await writeTextFile(`${vaultPath}/${target.path}`, content);
+      updateEntity({ ...target, frontmatter: updatedFm as EntityFrontmatter, modifiedAt: updatedFm.__modified });
+    } catch (err) {
+      console.error(`[editor] wikilink backlink failed for ${targetId}:`, err);
+    }
+  }
+}
+
+function unique<T>(arr: T[]): T[] {
+  return [...new Set(arr)];
 }
