@@ -1,12 +1,20 @@
+import { useState } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { Feather, Files, Archive, Plus, Gear, FolderOpen } from '@phosphor-icons/react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import {
+  Feather, Files, Archive, Plus, Gear, FolderOpen,
+  DotsThree, PencilSimple, Trash,
+} from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useShallow } from 'zustand/react/shallow';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { pickFolder } from '../../services/fs.service';
 import { SignOut } from '@phosphor-icons/react';
 import DynamicIcon from '../ui/DynamicIcon';
+import NewTypeDialog from '../type-editor/NewTypeDialog';
+import EditTypeDialog from '../type-editor/EditTypeDialog';
+import type { SchemaDefinition } from '../../types';
 import clsx from 'clsx';
 import styles from './TypeNav.module.css';
 
@@ -20,8 +28,12 @@ export default function TypeNav() {
   );
 
   const { schemas, entities } = useVaultData();
-  const openVault  = useVaultStore((s) => s.openVault);
-  const closeVault = useVaultStore((s) => s.closeVault);
+  const openVault    = useVaultStore((s) => s.openVault);
+  const closeVault   = useVaultStore((s) => s.closeVault);
+  const deleteSchema = useVaultStore((s) => s.deleteSchema);
+
+  const [newTypeOpen, setNewTypeOpen]           = useState(false);
+  const [editSchema, setEditSchema]             = useState<SchemaDefinition | null>(null);
 
   async function handleChangeVault() {
     const path = await pickFolder();
@@ -33,8 +45,17 @@ export default function TypeNav() {
     setActiveEntityId(null);
   }
 
-  const allCount      = entities.filter((e) => !e.archived).length;
-  const archiveCount  = entities.filter((e) => e.archived).length;
+  async function handleDeleteSchema(schema: SchemaDefinition) {
+    if (!confirm(`Delete the "${schema.name}" type? This does not delete existing files of this type.`)) return;
+    if (activeTypeId === schema.id) {
+      setActiveTypeId('__all');
+      setActiveEntityId(null);
+    }
+    await deleteSchema(schema);
+  }
+
+  const allCount     = entities.filter((e) => !e.archived).length;
+  const archiveCount = entities.filter((e) => e.archived).length;
 
   return (
     <Tooltip.Provider delayDuration={600}>
@@ -82,28 +103,58 @@ export default function TypeNav() {
                   const count = entities.filter(
                     (e) => e.type === schema.name && !e.archived,
                   ).length;
+                  const isActive = activeTypeId === schema.id;
                   return (
-                    <button
-                      key={schema.id}
-                      className={clsx(
-                        styles.navItem,
-                        activeTypeId === schema.id && styles.active,
-                      )}
-                      onClick={() => handleNavClick(schema.id)}
-                    >
-                      <span
-                        className={styles.typeDot}
-                        style={{ background: schema.color }}
-                      />
-                      <DynamicIcon
-                        name={schema.icon}
-                        size={14}
-                        weight={activeTypeId === schema.id ? 'fill' : 'regular'}
-                        color={activeTypeId === schema.id ? schema.color : undefined}
-                      />
-                      <span>{schema.name}</span>
-                      <span className={styles.count}>{count}</span>
-                    </button>
+                    <div key={schema.id} className={styles.typeRow}>
+                      <button
+                        className={clsx(styles.navItem, styles.typeItem, isActive && styles.active)}
+                        onClick={() => handleNavClick(schema.id)}
+                      >
+                        <span
+                          className={styles.typeDot}
+                          style={{ background: schema.color }}
+                        />
+                        <DynamicIcon
+                          name={schema.icon}
+                          size={14}
+                          weight={isActive ? 'fill' : 'regular'}
+                          color={isActive ? schema.color : undefined}
+                        />
+                        <span>{schema.name}</span>
+                        <span className={styles.count}>{count}</span>
+                      </button>
+
+                      <DropdownMenu.Root>
+                        <DropdownMenu.Trigger asChild>
+                          <button
+                            className={styles.typeMenuBtn}
+                            aria-label={`${schema.name} options`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <DotsThree size={14} weight="bold" />
+                          </button>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Portal>
+                          <DropdownMenu.Content className={styles.dropMenu} side="right" sideOffset={4}>
+                            <DropdownMenu.Item
+                              className={styles.dropItem}
+                              onSelect={() => setEditSchema(schema)}
+                            >
+                              <PencilSimple size={13} />
+                              <span>Edit type</span>
+                            </DropdownMenu.Item>
+                            <DropdownMenu.Separator className={styles.dropSep} />
+                            <DropdownMenu.Item
+                              className={`${styles.dropItem} ${styles.dropItemDanger}`}
+                              onSelect={() => handleDeleteSchema(schema)}
+                            >
+                              <Trash size={13} />
+                              <span>Delete type</span>
+                            </DropdownMenu.Item>
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                      </DropdownMenu.Root>
+                    </div>
                   );
                 })
               )}
@@ -119,7 +170,7 @@ export default function TypeNav() {
         <div className={styles.bottom}>
           <Tooltip.Root>
             <Tooltip.Trigger asChild>
-              <button className={styles.navItem} onClick={() => {}}>
+              <button className={styles.navItem} onClick={() => setNewTypeOpen(true)}>
                 <Plus size={14} />
                 <span>New Type</span>
               </button>
@@ -179,6 +230,9 @@ export default function TypeNav() {
           )}
         </div>
       </nav>
+
+      <NewTypeDialog open={newTypeOpen} onClose={() => setNewTypeOpen(false)} />
+      <EditTypeDialog schema={editSchema} onClose={() => setEditSchema(null)} />
     </Tooltip.Provider>
   );
 }

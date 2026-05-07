@@ -1,14 +1,16 @@
+import { useState, useRef } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import {
-  X, Hash, Calendar, ToggleLeft, Tag, TextT,
+  X, Hash, Calendar, Tag, TextT,
   ArrowUpRight, TreeStructure, ArrowsOut,
   FileText, Clock, PencilLine, Eye,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
-import { useVaultData } from '../../store/vault.store';
+import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import styles from './PropertiesPanel.module.css';
+import type { FieldDefinition } from '../../types';
 
 function formatDate(iso: string): string {
   try {
@@ -45,12 +47,92 @@ function FieldIcon({ type }: { type: string }) {
   const size = 12;
   switch (type) {
     case 'date':    return <Calendar size={size} />;
-    case 'boolean': return <ToggleLeft size={size} />;
     case 'tags':    return <Tag size={size} />;
     case 'number':  return <Hash size={size} />;
     default:        return <TextT size={size} />;
   }
 }
+
+// ─── Editable field input ─────────────────────────────────
+
+interface FieldInputProps {
+  field: FieldDefinition;
+  value: unknown;
+  onSave: (key: string, value: unknown) => void;
+}
+
+function FieldInput({ field, value, onSave }: FieldInputProps) {
+  const [localVal, setLocalVal] = useState<string>(
+    value === undefined || value === null ? '' : String(value),
+  );
+  const commitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function schedule(v: string) {
+    setLocalVal(v);
+    if (commitRef.current) clearTimeout(commitRef.current);
+    commitRef.current = setTimeout(() => {
+      if (field.type === 'number') {
+        onSave(field.key, v === '' ? undefined : Number(v));
+      } else if (field.type === 'tags') {
+        onSave(field.key, v);
+      } else {
+        onSave(field.key, v === '' ? undefined : v);
+      }
+    }, 600);
+  }
+
+  if (field.type === 'boolean') {
+    const checked = !!value;
+    return (
+      <button
+        type="button"
+        className={`${styles.toggle} ${checked ? styles.toggleOn : ''}`}
+        onClick={() => onSave(field.key, !checked)}
+        aria-checked={checked}
+        role="switch"
+      >
+        <span className={styles.toggleThumb} />
+      </button>
+    );
+  }
+
+  if (field.type === 'textarea') {
+    return (
+      <textarea
+        className={styles.fieldTextarea}
+        value={localVal}
+        placeholder="—"
+        onChange={(e) => schedule(e.target.value)}
+        rows={3}
+      />
+    );
+  }
+
+  if (field.type === 'number') {
+    return (
+      <input
+        type="number"
+        className={styles.fieldInput}
+        value={localVal}
+        placeholder="—"
+        onChange={(e) => schedule(e.target.value)}
+      />
+    );
+  }
+
+  // text, tags, date, select, relation → text input
+  return (
+    <input
+      type="text"
+      className={styles.fieldInput}
+      value={localVal}
+      placeholder={field.type === 'tags' ? 'tag1, tag2…' : '—'}
+      onChange={(e) => schedule(e.target.value)}
+    />
+  );
+}
+
+// ─── Main panel ───────────────────────────────────────────
 
 export default function PropertiesPanel() {
   const { activeEntityId, setPropertiesPanelOpen } = useUIStore(
@@ -60,17 +142,16 @@ export default function PropertiesPanel() {
     })),
   );
   const { entities, schemas } = useVaultData();
+  const patchEntityFrontmatter = useVaultStore((s) => s.patchEntityFrontmatter);
 
   const entity = entities.find((e) => e.id === activeEntityId) ?? null;
   const schema = entity ? schemas.find((s) => s.name === entity.type) : null;
 
-  // User-defined field values from frontmatter (excluding system __ fields and _ relation fields)
   const userFields = schema?.fields.map((field) => ({
     ...field,
     value: entity?.frontmatter[field.key],
   })) ?? [];
 
-  // Relation fields from frontmatter
   const relations = entity
     ? [
         ...((entity.frontmatter._parentOf  as string[] | undefined) ?? []).map((t) => ({ kind: 'Parent of',  target: t })),
@@ -79,6 +160,11 @@ export default function PropertiesPanel() {
         ...((entity.frontmatter._relatedTo as string[] | undefined) ?? []).map((t) => ({ kind: 'Related to', target: t })),
       ]
     : [];
+
+  function handleFieldSave(key: string, value: unknown) {
+    if (!entity) return;
+    void patchEntityFrontmatter(entity, { [key]: value });
+  }
 
   return (
     <div className={styles.panel}>
@@ -135,35 +221,21 @@ export default function PropertiesPanel() {
                 <section className={styles.section}>
                   <div className={styles.sectionHeader}>Properties</div>
                   <div className={styles.fields}>
-                    {userFields.map((field) => {
-                      const rawVal = field.value;
-                      const isEmpty = rawVal === undefined || rawVal === null || rawVal === '';
-                      return (
-                        <div key={field.key} className={styles.field}>
-                          <div className={styles.fieldLabel}>
-                            <FieldIcon type={field.type} />
-                            <span>{field.label}</span>
-                          </div>
-                          <div className={styles.fieldValue}>
-                            {isEmpty ? (
-                              <span className={styles.fieldEmpty}>—</span>
-                            ) : field.type === 'boolean' ? (
-                              <span className={rawVal ? styles.boolTrue : styles.boolFalse}>
-                                {String(rawVal)}
-                              </span>
-                            ) : field.type === 'tags' ? (
-                              <div className={styles.tags}>
-                                {String(rawVal).split(/,\s*/).map((tag) => (
-                                  <span key={tag} className={styles.tag}>{tag}</span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span>{String(rawVal)}</span>
-                            )}
-                          </div>
+                    {userFields.map((field) => (
+                      <div key={field.key} className={styles.field}>
+                        <div className={styles.fieldLabel}>
+                          <FieldIcon type={field.type} />
+                          <span>{field.label}</span>
                         </div>
-                      );
-                    })}
+                        <div className={styles.fieldValueWrap}>
+                          <FieldInput
+                            field={field}
+                            value={field.value}
+                            onSave={handleFieldSave}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </section>
               )}

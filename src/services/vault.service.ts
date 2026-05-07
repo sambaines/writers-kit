@@ -6,6 +6,7 @@ import {
   ensureDir,
   fileExists,
   getFileStat,
+  deleteFile,
 } from './fs.service';
 import type { Entity, SchemaDefinition, FieldDefinition, EntityFrontmatter } from '../types';
 
@@ -289,6 +290,106 @@ export async function initVault(vaultPath: string, seedDefaults = false): Promis
 
 export function serialiseEntity(entity: Entity): string {
   const { body, frontmatter } = entity;
-  // gray-matter stringify
   return matter.stringify(body, frontmatter as Record<string, unknown>);
+}
+
+/* ─── Schema CRUD ───────────────────────────────────────── */
+
+export async function saveSchema(
+  vaultPath: string,
+  schema: SchemaDefinition,
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fm: Record<string, any> = {
+    __type: '_schema',
+    name: schema.name,
+    icon: schema.icon,
+    color: schema.color,
+  };
+  if (schema.description) fm.description = schema.description;
+  if (schema.fields.length > 0) fm.fields = schema.fields;
+  const content = matter.stringify('', fm);
+  await writeTextFile(joinPath(vaultPath, schema.filePath), content);
+}
+
+export async function createSchemaFile(
+  vaultPath: string,
+  draft: Omit<SchemaDefinition, 'id' | 'filePath'>,
+): Promise<SchemaDefinition> {
+  const filename = `${draft.name}.md`;
+  const filePath = `.schemas/${filename}`;
+  const schema: SchemaDefinition = { ...draft, id: draft.name, filePath };
+  await saveSchema(vaultPath, schema);
+  return schema;
+}
+
+export async function deleteSchemaFile(
+  vaultPath: string,
+  schema: SchemaDefinition,
+): Promise<void> {
+  await deleteFile(joinPath(vaultPath, schema.filePath));
+}
+
+/* ─── Entity CRUD ───────────────────────────────────────── */
+
+export async function createEntityFile(
+  vaultPath: string,
+  type: string,
+  title: string,
+): Promise<Entity> {
+  const now  = new Date().toISOString();
+  const slug = `${type.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+  const path = `${slug}.md`;
+
+  const frontmatter: EntityFrontmatter = {
+    __type:     type,
+    title,
+    __created:  now,
+    __modified: now,
+    __archived: false,
+    _parentOf:  [],
+    _childOf:   [],
+    _siblingOf: [],
+    _relatedTo: [],
+  };
+
+  const content = matter.stringify('', frontmatter as Record<string, unknown>);
+  const fullPath = joinPath(vaultPath, path);
+  await writeTextFile(fullPath, content);
+
+  return {
+    id:         slug,
+    path,
+    title,
+    type,
+    archived:   false,
+    wordCount:  0,
+    charCount:  0,
+    fileSize:   content.length,
+    createdAt:  now,
+    modifiedAt: now,
+    frontmatter,
+    body:       '',
+  };
+}
+
+export async function updateEntityFrontmatter(
+  vaultPath: string,
+  entity: Entity,
+  updates: Partial<EntityFrontmatter>,
+): Promise<Entity> {
+  const now = new Date().toISOString();
+  const updatedFm: EntityFrontmatter = {
+    ...entity.frontmatter,
+    ...updates,
+    __modified: now,
+  };
+  const content = matter.stringify(entity.body, updatedFm as Record<string, unknown>);
+  await writeTextFile(joinPath(vaultPath, entity.path), content);
+  return {
+    ...entity,
+    frontmatter: updatedFm,
+    modifiedAt:  now,
+    title: (updatedFm.title as string) ?? entity.title,
+  };
 }

@@ -3,13 +3,14 @@ import { MagnifyingGlass, Plus } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useUIStore } from '../../store/ui.store';
 import { useShallow } from 'zustand/react/shallow';
-import { useVaultData } from '../../store/vault.store';
+import { useVaultData, useVaultStore } from '../../store/vault.store';
 import DynamicIcon from '../ui/DynamicIcon';
 import clsx from 'clsx';
 import styles from './EntityList.module.css';
 
 export default function EntityList() {
   const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const { activeTypeId, activeEntityId, setActiveEntityId } = useUIStore(
     useShallow((s) => ({
@@ -20,6 +21,7 @@ export default function EntityList() {
   );
 
   const { schemas, entities } = useVaultData();
+  const createEntity = useVaultStore((s) => s.createEntity);
 
   if (!activeTypeId) {
     return (
@@ -41,7 +43,6 @@ export default function EntityList() {
   let filtered = entities.filter((e) => {
     if (activeTypeId === '__all')     return !e.archived;
     if (activeTypeId === '__archive') return e.archived;
-    // Match by schema name
     return e.type === activeSchema?.name && !e.archived;
   });
 
@@ -58,6 +59,20 @@ export default function EntityList() {
 
   const icon  = activeSchema?.icon  ?? 'File';
   const color = activeSchema?.color ?? 'var(--text-tertiary)';
+
+  async function handleNewEntity() {
+    if (!activeSchema) return;
+    if (creating) return;
+    setCreating(true);
+    try {
+      const entity = await createEntity(activeSchema.name, `New ${activeSchema.name}`);
+      setActiveEntityId(entity.id);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const canCreate = !!activeSchema;
 
   return (
     <div className={styles.list}>
@@ -91,7 +106,6 @@ export default function EntityList() {
           ) : (
             <div className={styles.entityItems}>
               {filtered.map((entity) => {
-                // Icon/color: use entity override first, then schema, then default
                 const schema = schemas.find((s) => s.name === entity.type);
                 const eIcon  = entity.icon  ?? schema?.icon  ?? 'File';
                 const eColor = entity.color ?? schema?.color ?? 'var(--text-tertiary)';
@@ -127,9 +141,13 @@ export default function EntityList() {
 
       {/* Footer */}
       <div className={styles.footer}>
-        <button className={styles.newBtn}>
+        <button
+          className={styles.newBtn}
+          onClick={handleNewEntity}
+          disabled={!canCreate || creating}
+        >
           <Plus size={13} />
-          <span>New {label === 'All Files' ? 'File' : label}</span>
+          <span>{creating ? 'Creating…' : `New ${label === 'All Files' ? 'File' : label}`}</span>
         </button>
       </div>
     </div>

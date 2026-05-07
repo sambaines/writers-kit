@@ -146,6 +146,95 @@
   color: var(--color-warning);
 }
 
+.emptyTypes {
+  padding: 4px var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+/* ─── Type row with menu button ─────────────────────────── */
+.typeRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.typeItem {
+  flex: 1;
+  padding-right: 26px; /* make room for menu btn */
+}
+
+.typeMenuBtn {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.typeRow:hover .typeMenuBtn {
+  opacity: 1;
+}
+
+.typeMenuBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ─── Dropdown menu ─────────────────────────────────────── */
+.dropMenu {
+  background: var(--bg-floating);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  min-width: 130px;
+  animation: dropIn 0.12s ease;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dropItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  border-radius: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+}
+
+.dropItem[data-highlighted] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dropItemDanger[data-highlighted] {
+  background: rgba(255, 83, 112, 0.12);
+  color: #ff5370;
+}
+
+.dropSep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 3px 0;
+}
+
 /* ─── Tooltip ───────────────────────────────────────────── */
 .tooltip {
   background: var(--bg-overlay);
