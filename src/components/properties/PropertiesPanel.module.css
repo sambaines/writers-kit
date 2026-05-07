@@ -1,6 +1,7 @@
 .panel {
   width: var(--panel-props);
   min-width: var(--panel-props);
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
@@ -271,25 +272,29 @@
   padding: 0 var(--space-3);
 }
 
-.relation {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 26px;
-  border-radius: var(--radius-sm);
-  padding: 0 2px;
+/* ─── Relation groups (grouped by kind) ─────────────────── */
+.relGroup {
+  margin-bottom: 8px;
 }
 
-.relation:hover .relRemoveBtn {
-  opacity: 1;
-}
-
-.relKind {
+.relGroupLabel {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  width: 64px;
-  min-width: 64px;
-  flex-shrink: 0;
+  font-weight: var(--weight-medium);
+  padding: 2px 0 3px 2px;
+  user-select: none;
+}
+
+.relItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+  padding: 1px 0;
+}
+
+.relItem:hover .relRemoveBtn {
+  opacity: 1;
 }
 
 .relLink {
@@ -304,7 +309,7 @@
   padding: 3px 5px;
   border-radius: var(--radius-sm);
   transition: background var(--transition-fast), color var(--transition-fast);
-  overflow: hidden;
+  text-align: left;
 }
 
 .relLink:hover {
@@ -313,9 +318,9 @@
 }
 
 .relLink span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .relArrow {
@@ -329,14 +334,15 @@
   justify-content: center;
   width: 18px;
   height: 18px;
+  margin-top: 2px;
   background: transparent;
   border: none;
   border-radius: 3px;
   color: var(--text-tertiary);
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
   flex-shrink: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
 }
 
 .relRemoveBtn:hover {

@@ -212,18 +212,18 @@ export default function PropertiesPanel() {
     value: entity?.frontmatter[field.key],
   })) ?? [];
 
-  // Build flat relation list with kind metadata
-  type RelationItem = { kind: RelationKind; label: string; targetId: string };
-  const relations: RelationItem[] = entity
-    ? [
-        ...((entity.frontmatter._parentOf  as string[] | undefined) ?? []).map((t) => ({ kind: 'parentOf'  as RelationKind, label: 'Parent of',  targetId: t })),
-        ...((entity.frontmatter._childOf   as string[] | undefined) ?? []).map((t) => ({ kind: 'childOf'   as RelationKind, label: 'Child of',   targetId: t })),
-        ...((entity.frontmatter._siblingOf as string[] | undefined) ?? []).map((t) => ({ kind: 'siblingOf' as RelationKind, label: 'Sibling of', targetId: t })),
-        ...((entity.frontmatter._relatedTo as string[] | undefined) ?? []).map((t) => ({ kind: 'relatedTo' as RelationKind, label: 'Related to', targetId: t })),
-      ]
-    : [];
+  const RELATION_GROUPS: { kind: RelationKind; label: string; key: string }[] = [
+    { kind: 'parentOf',  label: 'Parent of',  key: '_parentOf'  },
+    { kind: 'childOf',   label: 'Child of',   key: '_childOf'   },
+    { kind: 'siblingOf', label: 'Sibling of', key: '_siblingOf' },
+    { kind: 'relatedTo', label: 'Related to', key: '_relatedTo' },
+  ];
 
-  const existingTargetIds = relations.map((r) => r.targetId);
+  const existingTargetIds = entity
+    ? RELATION_GROUPS.flatMap(({ key }) =>
+        (entity.frontmatter[key] as string[] | undefined) ?? [],
+      )
+    : [];
 
   function handleFieldSave(key: string, value: unknown) {
     if (!entity) return;
@@ -348,33 +348,41 @@ export default function PropertiesPanel() {
               <section className={styles.section}>
                 <div className={styles.sectionHeader}>Relations</div>
                 <div className={styles.relations}>
-                  {relations.length === 0 && (
+                  {existingTargetIds.length === 0 && (
                     <span className={styles.emptyHint}>No relations yet</span>
                   )}
-                  {relations.map((rel, i) => {
-                    const target = entities.find((e) => e.id === rel.targetId);
-                    const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
-                    const tIcon  = target?.icon ?? tSchema?.icon ?? 'File';
-                    const tColor = target?.color ?? tSchema?.color ?? 'var(--text-tertiary)';
+                  {RELATION_GROUPS.map(({ kind, label, key }) => {
+                    const ids = (entity.frontmatter[key] as string[] | undefined) ?? [];
+                    if (ids.length === 0) return null;
                     return (
-                      <div key={i} className={styles.relation}>
-                        <span className={styles.relKind}>{rel.label}</span>
-                        <button
-                          className={styles.relLink}
-                          onClick={() => target && setActiveEntityId(target.id)}
-                          title={target ? `Open ${target.title}` : rel.targetId}
-                        >
-                          <DynamicIcon name={tIcon} size={11} color={tColor} weight="duotone" />
-                          <span>{target?.title ?? rel.targetId}</span>
-                          {target && <ArrowUpRight size={10} className={styles.relArrow} />}
-                        </button>
-                        <button
-                          className={styles.relRemoveBtn}
-                          onClick={() => handleRemoveRelation(rel.targetId, rel.kind)}
-                          aria-label="Remove relation"
-                        >
-                          <X size={10} />
-                        </button>
+                      <div key={kind} className={styles.relGroup}>
+                        <div className={styles.relGroupLabel}>{label}</div>
+                        {ids.map((targetId) => {
+                          const target = entities.find((e) => e.id === targetId);
+                          const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
+                          const tIcon  = target?.icon ?? tSchema?.icon ?? 'File';
+                          const tColor = target?.color ?? tSchema?.color ?? 'var(--text-tertiary)';
+                          return (
+                            <div key={targetId} className={styles.relItem}>
+                              <button
+                                className={styles.relLink}
+                                onClick={() => target && setActiveEntityId(target.id)}
+                                title={target ? `Open ${target.title}` : targetId}
+                              >
+                                <DynamicIcon name={tIcon} size={11} color={tColor} weight="duotone" />
+                                <span>{target?.title ?? targetId}</span>
+                                {target && <ArrowUpRight size={10} className={styles.relArrow} />}
+                              </button>
+                              <button
+                                className={styles.relRemoveBtn}
+                                onClick={() => handleRemoveRelation(targetId, kind)}
+                                aria-label="Remove relation"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}
