@@ -36,7 +36,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNENkREREFGNUEzMERGQTcKUldTbjN6QmFyOTF0UFNEOGhaaEhqLzc5SmVHOXpQZlc3amVNL0dPaXkzZ3o2K05Zd1k5SmM1Wk4K",
       "endpoints": [
         "https://github.com/sambaines/writers-kit/releases/latest/download/latest.json"
       ]
