@@ -1,0 +1,35 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.propsWrapper {
+  width: var(--panel-props);
+  min-width: var(--panel-props);
+  overflow: hidden;
+  transition:
+    width var(--transition-slow),
+    min-width var(--transition-slow),
+    opacity var(--transition-slow);
+  opacity: 1;
+}
+
+.propsClosed {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}

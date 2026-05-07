@@ -1,0 +1,201 @@
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ─── Toolbar ───────────────────────────────────────────── */
+.toolbar {
+  height: var(--toolbar-height);
+  min-height: var(--toolbar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.toolbarSep {
+  width: 1px;
+  height: 18px;
+  background: var(--border-default);
+  margin: 0 var(--space-1);
+  flex-shrink: 0;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.toolbarBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.toolbarBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.toolbarBtnActive {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
+.toolbarBtnActive:hover {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+
+/* ─── View toggle ───────────────────────────────────────── */
+.viewToggle {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+
+.viewBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  height: 24px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.viewBtn:hover {
+  color: var(--text-secondary);
+}
+
+.viewBtnActive {
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+}
+
+/* ─── Tooltip ───────────────────────────────────────────── */
+.tooltip {
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-md);
+  z-index: var(--z-tooltip);
+}
+
+/* ─── Body ──────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Welcome state ─────────────────────────────────────── */
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-12);
+  text-align: center;
+  user-select: none;
+}
+
+.welcomeTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+}
+
+.welcomeSub {
+  font-size: var(--text-sm);
+  color: var(--text-disabled);
+  max-width: 280px;
+  line-height: var(--leading-relaxed);
+}
+
+/* ─── Editor content ────────────────────────────────────── */
+.editorContent {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.richEditor {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-8) var(--space-12);
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.editorPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.placeholderText {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* ─── Raw editor ────────────────────────────────────────── */
+.rawEditor {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
+
+.rawTextarea {
+  flex: 1;
+  padding: var(--space-6) var(--space-8);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+  background: var(--bg-base);
+  resize: none;
+  width: 100%;
+  height: 100%;
+  tab-size: 2;
+}

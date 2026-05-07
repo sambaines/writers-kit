@@ -1,0 +1,107 @@
+:root {
+  /* ─── Backgrounds ─────────────────────────────────────── */
+  --bg-base:     #0E0E10;
+  --bg-surface:  #141416;
+  --bg-elevated: #1B1B1F;
+  --bg-overlay:  #222227;
+  --bg-hover:    #28282E;
+  --bg-active:   #2E2E36;
+
+  /* ─── Borders ────────────────────────────────────────── */
+  --border-subtle:  #1E1E24;
+  --border-default: #2A2A32;
+  --border-strong:  #3D3D47;
+
+  /* ─── Text ───────────────────────────────────────────── */
+  --text-primary:   #E4E4EA;
+  --text-secondary: #8A8A96;
+  --text-tertiary:  #52525C;
+  --text-disabled:  #36363E;
+  --text-inverse:   #0E0E10;
+
+  /* ─── Accent ─────────────────────────────────────────── */
+  --accent:        #7A6DF4;
+  --accent-hover:  #8E81FF;
+  --accent-subtle: rgba(122, 109, 244, 0.12);
+  --accent-border: rgba(122, 109, 244, 0.28);
+  --accent-text:   #A699F8;
+
+  /* ─── Semantic ───────────────────────────────────────── */
+  --color-success: #4ED898;
+  --color-warning: #F0A429;
+  --color-error:   #FF5370;
+  --color-info:    #4A9EFF;
+
+  /* ─── Typography ─────────────────────────────────────── */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+
+  --text-2xs:  10px;
+  --text-xs:   11px;
+  --text-sm:   12px;
+  --text-base: 13px;
+  --text-md:   14px;
+  --text-lg:   16px;
+  --text-xl:   18px;
+  --text-2xl:  22px;
+  --text-3xl:  28px;
+
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --leading-none:    1;
+  --leading-tight:   1.2;
+  --leading-snug:    1.35;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.7;
+
+  /* ─── Spacing ─────────────────────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ─── Border Radius ──────────────────────────────────── */
+  --radius-xs:   3px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-2xl:  16px;
+  --radius-full: 9999px;
+
+  /* ─── Layout ──────────────────────────────────────────── */
+  --panel-nav:        200px;
+  --panel-list:       220px;
+  --panel-props:      280px;
+  --statusbar-height: 26px;
+  --toolbar-height:   42px;
+
+  /* ─── Shadows ─────────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.32);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.52);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.62);
+
+  /* ─── Transitions ─────────────────────────────────────── */
+  --transition-fast: 80ms ease;
+  --transition-base: 140ms ease;
+  --transition-slow: 220ms ease;
+
+  /* ─── Z-Index ─────────────────────────────────────────── */
+  --z-base:     0;
+  --z-raised:   10;
+  --z-dropdown: 100;
+  --z-overlay:  200;
+  --z-modal:    300;
+  --z-tooltip:  400;
+}

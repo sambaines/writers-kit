@@ -1,0 +1,187 @@
+.list {
+  width: var(--panel-list);
+  min-width: var(--panel-list);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+/* ─── Header ────────────────────────────────────────────── */
+.header {
+  height: var(--toolbar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.headerLabel {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.headerCount {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Search ────────────────────────────────────────────── */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.searchIcon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.searchInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ─── Scroll area ───────────────────────────────────────── */
+.scrollRoot {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.scrollViewport {
+  width: 100%;
+  height: 100%;
+}
+
+.scrollbar {
+  display: flex;
+  user-select: none;
+  touch-action: none;
+  padding: 2px;
+  width: 6px;
+}
+
+.scrollThumb {
+  flex: 1;
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+  position: relative;
+}
+
+.scrollThumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* ─── Entity items ──────────────────────────────────────── */
+.entityItems {
+  padding: var(--space-1) 0;
+}
+
+.entityItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0 var(--space-3);
+  height: 34px;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.entityItem:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.entityItem.active {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+.entityItem.active .entityIcon {
+  color: var(--accent-text);
+}
+
+.entityIcon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.entityTitle {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entityMeta {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ─── Empty state ───────────────────────────────────────── */
+.empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+}
+
+.emptyText {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* ─── Footer ────────────────────────────────────────────── */
+.footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-1) 0;
+}
+
+.newBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0 var(--space-3);
+  height: 30px;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.newBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
