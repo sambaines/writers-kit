@@ -15,6 +15,7 @@ import DynamicIcon from '../ui/DynamicIcon';
 import NewTypeDialog from '../type-editor/NewTypeDialog';
 import EditTypeDialog from '../type-editor/EditTypeDialog';
 import DeleteTypeDialog from '../type-editor/DeleteTypeDialog';
+import SettingsDialog from '../settings/SettingsDialog';
 import type { SchemaDefinition } from '../../types';
 import clsx from 'clsx';
 import styles from './TypeNav.module.css';
@@ -37,6 +38,7 @@ export default function TypeNav() {
   const [newTypeOpen, setNewTypeOpen]     = useState(false);
   const [editSchema, setEditSchema]       = useState<SchemaDefinition | null>(null);
   const [deleteTarget, setDeleteTarget]   = useState<SchemaDefinition | null>(null);
+  const [settingsOpen, setSettingsOpen]   = useState(false);
 
   async function handleChangeVault() {
     const path = await pickFolder();
@@ -208,7 +210,7 @@ export default function TypeNav() {
 
           <Tooltip.Root>
             <Tooltip.Trigger asChild>
-              <button className={clsx(styles.navItem, styles.settingsBtn)}>
+              <button className={clsx(styles.navItem, styles.settingsBtn)} onClick={() => setSettingsOpen(true)}>
                 <Gear size={14} />
                 <span>Settings</span>
               </button>
@@ -243,6 +245,7 @@ export default function TypeNav() {
 
       <NewTypeDialog open={newTypeOpen} onClose={() => setNewTypeOpen(false)} />
       <EditTypeDialog schema={editSchema} onClose={() => setEditSchema(null)} />
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <DeleteTypeDialog
         schema={deleteTarget}
         orphanCount={deleteTarget ? entities.filter((e) => e.type === deleteTarget.name).length : 0}

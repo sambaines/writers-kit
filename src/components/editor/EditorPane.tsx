@@ -15,6 +15,7 @@ import {
   ListBullets, ListNumbers, Quotes, Code, Terminal, Link,
   ArrowCounterClockwise, ArrowClockwise,
   Eye, PencilLine, SidebarSimple, Feather, Brain,
+  Table, Image,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -31,6 +32,11 @@ import {
 import { WikiLink } from '../../extensions/WikiLink';
 import { buildWikiLinkSuggestion } from '../../extensions/WikiLinkSuggestion';
 import { ShikiCodeBlock } from '../../extensions/ShikiCodeBlock';
+import { Image as ImageExtension } from '@tiptap/extension-image';
+import { Table as TableExtension } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
 import clsx from 'clsx';
 import styles from './EditorPane.module.css';
 
@@ -130,6 +136,11 @@ export default function EditorPane() {
         breaks: false,
       }),
       ShikiCodeBlock,
+      ImageExtension.configure({ inline: false, allowBase64: true }),
+      TableExtension.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       WikiLink.configure({
         suggestion: buildWikiLinkSuggestion(
           () => entitiesRef.current,
@@ -138,8 +149,46 @@ export default function EditorPane() {
       }),
     ],
     editorProps: {
-      attributes: {
-        class: styles.proseMirror,
+      attributes: { class: styles.proseMirror },
+      handlePaste: (view, event) => {
+        const items = Array.from(event.clipboardData?.items ?? []);
+        for (const item of items) {
+          if (item.type.startsWith('image/')) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            if (!file) return false;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const src = e.target?.result as string;
+              if (src) view.dispatch(view.state.tr.replaceSelectionWith(
+                view.state.schema.nodes.image.create({ src }),
+              ));
+            };
+            reader.readAsDataURL(file);
+            return true;
+          }
+        }
+        return false;
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;
+        const files = Array.from((event as DragEvent).dataTransfer?.files ?? []);
+        for (const file of files) {
+          if (file.type.startsWith('image/')) {
+            event.preventDefault();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const src = e.target?.result as string;
+              if (!src) return;
+              const coords = view.posAtCoords({ left: (event as DragEvent).clientX, top: (event as DragEvent).clientY });
+              if (!coords) return;
+              view.dispatch(view.state.tr.insert(coords.pos, view.state.schema.nodes.image.create({ src })));
+            };
+            reader.readAsDataURL(file);
+            return true;
+          }
+        }
+        return false;
       },
     },
     onUpdate: ({ editor: e }) => {
@@ -349,6 +398,32 @@ export default function EditorPane() {
                   onClick={() => {
                     const url = window.prompt('URL');
                     if (url) editor?.chain().focus().setLink({ href: url }).run();
+                  }}
+                />
+                <ToolbarButton
+                  icon={<Table size={15} />}
+                  label="Insert table"
+                  active={editor?.isActive('table')}
+                  onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+                />
+                <ToolbarButton
+                  icon={<Image size={15} />}
+                  label="Insert image"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = () => {
+                      const file = input.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                        const src = e.target?.result as string;
+                        if (src) editor?.chain().focus().setImage({ src }).run();
+                      };
+                      reader.readAsDataURL(file);
+                    };
+                    input.click();
                   }}
                 />
               </div>

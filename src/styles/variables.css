@@ -105,3 +105,29 @@
   --z-modal:    300;
   --z-tooltip:  400;
 }
+
+/* ─── Light theme overrides ────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:     #F7F7F9;
+  --bg-surface:  #FFFFFF;
+  --bg-elevated: #F0F0F4;
+  --bg-overlay:  #E8E8EE;
+  --bg-hover:    #EBEBF0;
+  --bg-active:   #E0E0E8;
+
+  --border-subtle:  #E4E4EC;
+  --border-default: #D4D4DE;
+  --border-strong:  #BBBBC8;
+
+  --text-primary:   #18181E;
+  --text-secondary: #48485A;
+  --text-tertiary:  #84849A;
+  --text-disabled:  #ADADBD;
+  --text-inverse:   #F7F7F9;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.14);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.18);
+}
