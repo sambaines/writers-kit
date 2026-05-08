@@ -20,6 +20,9 @@ interface UIState {
   editorView: EditorView;
   saveStatus: SaveStatus;
 
+  /* Calendar */
+  activeCalendarId: string | null;
+
   /* Actions */
   setActiveView: (view: ViewMode) => void;
   setActiveTypeId: (id: string | null) => void;
@@ -31,6 +34,7 @@ interface UIState {
   setCommandPaletteOpen: (open: boolean) => void;
   setEditorView: (view: EditorView) => void;
   setSaveStatus: (status: SaveStatus) => void;
+  setActiveCalendarId: (id: string | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -43,6 +47,7 @@ export const useUIStore = create<UIState>((set) => ({
   commandPaletteOpen: false,
   editorView: 'rich',
   saveStatus: 'idle',
+  activeCalendarId: null,
 
   setActiveView: (view) => set({ activeView: view }),
   setActiveTypeId: (id) => set({ activeTypeId: id, activeEntityId: null }),
@@ -55,4 +60,5 @@ export const useUIStore = create<UIState>((set) => ({
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setEditorView: (view) => set({ editorView: view }),
   setSaveStatus: (status) => set({ saveStatus: status }),
+  setActiveCalendarId: (id) => set({ activeCalendarId: id }),
 }));

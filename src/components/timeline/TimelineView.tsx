@@ -4,6 +4,8 @@ import { useVaultData } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import {
   buildTimelineItems,
+  computeEraOffsets,
+  parseCalendarEntity,
   generateTicks,
   yearToY,
   type TimelineSpan,
@@ -13,20 +15,26 @@ import { MagnifyingGlassPlus, MagnifyingGlassMinus, ChartLine } from '@phosphor-
 import styles from './TimelineView.module.css';
 
 const TOP_PAD      = 56;
-const MIN_SPACING  = 22;   // px minimum between vertically adjacent point labels
+const MIN_SPACING  = 22;
 const DEFAULT_PX   = 60;
 const MIN_PX       = 6;
 const MAX_PX       = 600;
-const AXIS_X       = 88;   // px from left edge to the axis line
-const SPAN_BAR_W   = 4;    // px width of each span bar
-const SPAN_LANE_W  = 12;   // px per lane (bar + gap)
-const SPAN_OFFSET  = 8;    // px gap between axis and first lane
+const AXIS_X       = 88;
+const SPAN_BAR_W   = 4;
+const SPAN_LANE_W  = 12;
+const SPAN_OFFSET  = 8;
+const ERA_BAR_W    = 6;
 
 export default function TimelineView() {
-  const { setActiveEntityId, setPropertiesPanelOpen } = useUIStore(
+  const {
+    setActiveEntityId, setPropertiesPanelOpen,
+    activeCalendarId, setActiveCalendarId,
+  } = useUIStore(
     useShallow((s) => ({
       setActiveEntityId:      s.setActiveEntityId,
       setPropertiesPanelOpen: s.setPropertiesPanelOpen,
+      activeCalendarId:       s.activeCalendarId,
+      setActiveCalendarId:    s.setActiveCalendarId,
     })),
   );
   const { entities, schemas } = useVaultData();
@@ -34,15 +42,29 @@ export default function TimelineView() {
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [pxPerYear, setPxPerYear]     = useState(DEFAULT_PX);
 
+  // Compute era offsets from all Era entities (ordering by 'number' field)
+  const eraOffsets = useMemo(() => computeEraOffsets(entities), [entities]);
+
+  // Parse the active calendar entity
+  const calendarEntities = useMemo(
+    () => entities.filter((e) => e.type === 'Calendar' && !e.archived),
+    [entities],
+  );
+  const activeCalendarEntity = calendarEntities.find((e) => e.id === activeCalendarId);
+  const activeCalendar = activeCalendarEntity ? parseCalendarEntity(activeCalendarEntity) : undefined;
+
+  // Schemas that have timeline-visible date fields, plus Era (always shown)
   const timelineSchemas = useMemo(
-    () => schemas.filter((s) => s.fields.some((f) => f.type === 'date' && f.timelineVisible)),
+    () => schemas.filter(
+      (s) => s.name === 'Era' || s.fields.some((f) => f.type === 'date' && f.timelineVisible),
+    ),
     [schemas],
   );
 
   const activeFilter = filterTypes.length > 0 ? filterTypes : undefined;
   const rawItems = useMemo(
-    () => buildTimelineItems(entities, schemas, activeFilter),
-    [entities, schemas, activeFilter],
+    () => buildTimelineItems(entities, schemas, eraOffsets, activeCalendar, activeFilter),
+    [entities, schemas, eraOffsets, activeCalendar, activeFilter], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const { visMin, totalHeight, ticks, positionedItems, spanLaneMap } = useMemo(() => {
@@ -53,36 +75,36 @@ export default function TimelineView() {
       };
     }
 
-    const allYears = rawItems.flatMap((item) =>
-      item.kind === 'span' ? [item.startYear, item.endYear] : [item.year],
+    const allLinear = rawItems.flatMap((item) =>
+      item.kind === 'span' ? [item.startLinear, item.endLinear] : [item.linear],
     );
-    const minY = Math.min(...allYears);
-    const maxY = Math.max(...allYears);
-    const pad  = Math.max(5, Math.ceil((maxY - minY) * 0.05));
-    const visMin = minY - pad;
-    const visMax = maxY + pad;
+    const minL = Math.min(...allLinear);
+    const maxL = Math.max(...allLinear);
+    const visMin = minL;
+    const visMax = maxL;
 
-    const ticks = generateTicks(visMin, visMax, pxPerYear);
+    const ticks = generateTicks(visMin, visMax, pxPerYear, eraOffsets);
     const naturalHeight = TOP_PAD * 2 + (visMax - visMin) * pxPerYear;
 
-    // Assign overlapping spans to horizontal lanes so bars don't sit on top of each other
+    // Assign overlapping spans to horizontal lanes
     const spanItems = rawItems.filter((i): i is TimelineSpan => i.kind === 'span');
     const spanLaneMap = new Map<string, number>();
-    const laneEndYears: number[] = [];
+    const laneEndLinears: number[] = [];
     for (const span of spanItems) {
-      let lane = laneEndYears.findIndex((ey) => ey <= span.startYear);
-      if (lane === -1) lane = laneEndYears.length;
-      laneEndYears[lane] = span.endYear;
+      let lane = laneEndLinears.findIndex((el) => el <= span.startLinear);
+      if (lane === -1) lane = laneEndLinears.length;
+      laneEndLinears[lane] = span.endLinear;
       spanLaneMap.set(span.entityId, lane);
     }
+
     // Enforce minimum vertical spacing for point labels
     let lastPointY = -Infinity;
     const positionedItems = rawItems.map((item) => {
       if (item.kind === 'span') {
-        const y = yearToY(item.startYear, visMin, pxPerYear, TOP_PAD);
+        const y = yearToY(item.startLinear, visMin, pxPerYear, TOP_PAD);
         return { item, y };
       }
-      const natural = yearToY(item.year, visMin, pxPerYear, TOP_PAD);
+      const natural = yearToY(item.linear, visMin, pxPerYear, TOP_PAD);
       const y = Math.max(natural, lastPointY + MIN_SPACING);
       lastPointY = y;
       return { item, y };
@@ -94,7 +116,7 @@ export default function TimelineView() {
     const totalHeight = Math.max(naturalHeight, lastItemY + TOP_PAD);
 
     return { visMin, totalHeight, ticks, positionedItems, spanLaneMap };
-  }, [rawItems, pxPerYear]);
+  }, [rawItems, pxPerYear, eraOffsets]);
 
   function toggleFilter(typeName: string) {
     setFilterTypes((prev) =>
@@ -159,6 +181,22 @@ export default function TimelineView() {
             );
           })}
         </div>
+
+        {/* Calendar picker */}
+        {calendarEntities.length > 0 && (
+          <select
+            className={styles.calendarPicker}
+            value={activeCalendarId ?? ''}
+            onChange={(e) => setActiveCalendarId(e.target.value || null)}
+            title="Select calendar"
+          >
+            <option value="">No calendar</option>
+            {calendarEntities.map((c) => (
+              <option key={c.id} value={c.id}>{c.title}</option>
+            ))}
+          </select>
+        )}
+
         <div className={styles.zoomControls}>
           <button className={styles.zoomBtn} onClick={() => zoom(1.5)} aria-label="Zoom in">
             <MagnifyingGlassPlus size={14} />
@@ -175,16 +213,20 @@ export default function TimelineView() {
           {/* Axis line */}
           <div className={styles.axisLine} style={{ left: AXIS_X }} />
 
-          {/* Tick marks + year labels */}
+          {/* Tick marks + labels */}
           {ticks.map((tick) => {
-            const y = yearToY(tick.year, visMin, pxPerYear, TOP_PAD);
+            const y = yearToY(tick.linear, visMin, pxPerYear, TOP_PAD);
             return (
               <div
-                key={tick.year}
-                className={`${styles.tickRow} ${tick.major ? styles.tickMajor : ''}`}
+                key={`${tick.linear}-${tick.label}`}
+                className={[
+                  styles.tickRow,
+                  tick.major ? styles.tickMajor : '',
+                  tick.isEraBoundary ? styles.tickEraBoundary : '',
+                ].join(' ')}
                 style={{ top: y, '--axis-x': `${AXIS_X}px` } as React.CSSProperties}
               >
-                <span className={styles.tickLabel}>{tick.year}</span>
+                <span className={styles.tickLabel}>{tick.label}</span>
                 <span className={styles.tickMark} />
               </div>
             );
@@ -193,25 +235,25 @@ export default function TimelineView() {
           {/* Events */}
           {positionedItems.map(({ item, y }) => {
             if (item.kind === 'span') {
-              const lane        = spanLaneMap.get(item.entityId) ?? 0;
-              const barLeft     = AXIS_X + SPAN_OFFSET + lane * SPAN_LANE_W;
-              const labelLeft   = barLeft + SPAN_BAR_W + 6;
-              const y2Natural   = yearToY(item.endYear, visMin, pxPerYear, TOP_PAD);
-              const spanHeight  = Math.max(8, y2Natural - y);
+              const lane      = spanLaneMap.get(item.entityId) ?? 0;
+              const barW      = item.isEra ? ERA_BAR_W : SPAN_BAR_W;
+              const barLeft   = AXIS_X + SPAN_OFFSET + lane * SPAN_LANE_W;
+              const labelLeft = barLeft + barW + 6;
+              const y2        = yearToY(item.endLinear, visMin, pxPerYear, TOP_PAD);
+              const spanHeight = Math.max(8, y2 - y);
 
               return (
                 <div key={`${item.entityId}-span`} className={styles.spanItem} style={{ top: y }}>
-                  {/* Vertical bar in its assigned lane */}
                   <div
                     className={styles.spanBar}
                     style={{
                       left:       barLeft,
                       height:     spanHeight,
-                      width:      SPAN_BAR_W,
+                      width:      barW,
                       background: item.entityColor,
+                      opacity:    item.isEra ? 0.4 : 0.7,
                     }}
                   />
-                  {/* Label to the right of this lane's bar */}
                   <button
                     className={styles.eventLabel}
                     style={{ left: labelLeft }}
@@ -219,13 +261,12 @@ export default function TimelineView() {
                   >
                     <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} weight="duotone" />
                     <span style={{ color: item.entityColor }}>{item.entityTitle}</span>
-                    <span className={styles.itemYear}>{item.startYear} – {item.endYear}</span>
+                    <span className={styles.itemYear}>{item.dateLabel}</span>
                   </button>
                 </div>
               );
             }
 
-            // Point item
             return (
               <div
                 key={`${item.entityId}-${item.fieldLabel}`}
@@ -241,7 +282,7 @@ export default function TimelineView() {
                   <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} weight="duotone" />
                   <span>{item.entityTitle}</span>
                   {item.fieldLabel && <span className={styles.fieldTag}>· {item.fieldLabel}</span>}
-                  <span className={styles.itemYear}>{item.year}</span>
+                  <span className={styles.itemYear}>{item.dateLabel}</span>
                 </button>
               </div>
             );

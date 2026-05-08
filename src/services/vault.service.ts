@@ -213,16 +213,17 @@ name: Era
 icon: Timer
 color: "#FF5370"
 fields:
-  - key: start
-    label: Start
-    type: date
-    dateKind: single
-    timelineVisible: true
+  - key: number
+    label: Order
+    type: number
   - key: end
-    label: End
-    type: date
-    dateKind: single
-    timelineVisible: true
+    label: Duration (years)
+    type: number
+  - key: calendar
+    label: Calendar
+    type: relation
+    relatesTo:
+      - Calendar
   - key: tags
     label: Tags
     type: tags
@@ -248,12 +249,9 @@ name: Calendar
 icon: CalendarBlank
 color: "#50E3A4"
 fields:
-  - key: epoch
-    label: Epoch Name
-    type: text
   - key: months
-    label: Months (YAML list)
-    type: textarea
+    label: Months
+    type: months
   - key: weekdays
     label: Days per Week
     type: number

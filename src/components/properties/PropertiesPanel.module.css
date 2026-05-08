@@ -211,6 +211,7 @@
 
 .field {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
@@ -799,16 +800,29 @@
   color: var(--text-tertiary);
 }
 
-.addPropSelect {
+.addPropTypeBtn {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 4px 7px;
   background: var(--bg-overlay);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  outline: none;
   cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.addPropTypeBtn:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.addPropTypeBtn[data-state="open"] {
+  border-color: var(--accent);
 }
 
 .addPropActions {
@@ -853,4 +867,308 @@
 .addPropCancel:hover {
   background: var(--bg-hover);
   color: var(--text-secondary);
+}
+
+/* ─── Fantasy date input ─────────────────────────────────── */
+.fantasyDateWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.fantasyDateRow {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+.fantasyDateSelect {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  width: 100%;
+}
+
+.fantasyDateSelect:focus {
+  outline: none;
+  border-color: var(--accent-border);
+}
+
+.fantasyDateYear {
+  width: 56px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+}
+
+.fantasyDateYear:focus {
+  outline: none;
+  border-color: var(--accent-border);
+}
+
+.fantasyDateDay {
+  width: 46px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+}
+
+.fantasyDateDay:focus {
+  outline: none;
+  border-color: var(--accent-border);
+}
+
+/* ─── Custom property date options ───────────────────────── */
+.customDateOptions {
+  flex-basis: 100%;
+  display: flex;
+  gap: 5px;
+  padding: 2px 0 4px;
+}
+
+.customDateToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s, background 0.1s;
+}
+
+.customDateToggle:hover {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.customDateToggleOn {
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+}
+
+/* ─── Months editor ──────────────────────────────────────── */
+.monthsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.monthRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.monthName {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+}
+
+.monthName:focus {
+  outline: none;
+  border-color: var(--accent-border);
+}
+
+.monthDays {
+  width: 46px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.monthDays:focus {
+  outline: none;
+  border-color: var(--accent-border);
+}
+
+.monthActions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.monthMoveBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-disabled);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.monthMoveBtn:hover:not(:disabled) {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.monthMoveBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.monthRemoveBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-disabled);
+  cursor: pointer;
+  padding: 0;
+}
+
+.monthRemoveBtn:hover {
+  color: var(--color-error);
+  background: var(--bg-hover);
+}
+
+.monthAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  padding: 3px 6px;
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.monthAddBtn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+/* ─── Inline relation search ─────────────────────────────── */
+.relInlineSearch {
+  position: relative;
+  flex: 1;
+  min-width: 80px;
+}
+
+.relSearchInput {
+  width: 100%;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  outline: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.relSearchInput:hover,
+.relSearchInput:focus {
+  border-color: var(--accent-border);
+  border-style: solid;
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+}
+
+.relSearchInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.relDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 160px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.relDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.08s, color 0.08s;
+}
+
+.relDropdownItem:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.relDropdownTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relDropdownType {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  flex-shrink: 0;
 }

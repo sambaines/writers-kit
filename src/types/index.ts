@@ -8,9 +8,10 @@ export type FieldType =
   | 'date'
   | 'tags'
   | 'select'
-  | 'relation';
+  | 'relation'
+  | 'months';
 
-export type DateKind = 'single' | 'range';
+export type DateKind = 'single' | 'range' | 'fantasy';
 
 export interface FieldDefinition {
   key: string;
@@ -130,8 +131,23 @@ export interface CalendarMonth {
 export interface CalendarDefinition {
   id: string;
   name: string;
-  epoch: string;
   months: CalendarMonth[];
   weekdays: number;
-  seasons?: { name: string; months: string[] }[];
+}
+
+/** A date in a fantasy calendar: era entity ID + year/month/day within that era. */
+export interface FantasyDate {
+  era: string;   // entity ID of the Era entity
+  year: number;  // 1-based year within the era
+  month: number; // 1-based month index
+  day: number;   // 1-based day within the month
+}
+
+/** An Era entity with its cumulative absolute start position on the linear axis. */
+export interface EraWithOffset {
+  id: string;
+  title: string;
+  order: number;
+  duration: number;        // total years in this era (= value of 'end' field)
+  cumulativeStart: number; // absolute linear position where this era begins
 }

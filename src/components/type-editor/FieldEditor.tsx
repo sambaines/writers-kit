@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as Select from '@radix-ui/react-select';
-import { Plus, Trash, ArrowUp, ArrowDown, CaretDown, ChartLine } from '@phosphor-icons/react';
+import { Plus, Trash, ArrowUp, ArrowDown, CaretDown, ChartLine, CalendarStar } from '@phosphor-icons/react';
 import type { FieldDefinition, FieldType } from '../../types';
 import styles from './FieldEditor.module.css';
 
@@ -13,6 +13,7 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'tags',     label: 'Tags' },
   { value: 'select',   label: 'Select' },
   { value: 'relation', label: 'Relation' },
+  { value: 'months',   label: 'Custom Calendar' },
 ];
 
 interface FieldEditorProps {
@@ -136,6 +137,18 @@ export default function FieldEditor({ fields, onChange }: FieldEditorProps) {
                   >
                     <ChartLine size={11} />
                     <span>Show on timeline</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={field.dateKind === 'fantasy'}
+                    className={`${styles.timelineToggle} ${field.dateKind === 'fantasy' ? styles.timelineToggleOn : ''}`}
+                    onClick={() => updateField(i, {
+                      dateKind: field.dateKind === 'fantasy' ? 'single' : 'fantasy',
+                    })}
+                  >
+                    <CalendarStar size={11} />
+                    <span>Fantasy date</span>
                   </button>
                 </div>
               )}

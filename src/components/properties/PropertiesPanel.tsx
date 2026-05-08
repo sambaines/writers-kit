@@ -5,7 +5,7 @@ import {
   X, Hash, Calendar, Tag, TextT,
   ArrowUpRight, Plus, ArrowsOut,
   FileText, Clock, PencilLine, Eye, CaretUpDown, Shapes,
-  CaretDown, CaretRight,
+  CaretDown, CaretRight, ChartLine, CalendarStar,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -13,8 +13,10 @@ import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
+import yaml from 'js-yaml';
+import { parseCalendarEntity, parseFantasyDate } from '../../services/timeline.service';
 import styles from './PropertiesPanel.module.css';
-import type { FieldDefinition, RelationKind } from '../../types';
+import type { FieldDefinition, RelationKind, CalendarDefinition, FantasyDate, Entity } from '../../types';
 
 function unique<T>(arr: T[]): T[] {
   return [...new Set(arr)];
@@ -145,6 +147,293 @@ function TagInput({ fieldKey, value, onSave, entities }: TagInputProps) {
   );
 }
 
+// ─── Months input ─────────────────────────────────────────
+
+interface MonthEntry { name: string; days: number; }
+
+function parseMonthsValue(value: unknown): MonthEntry[] {
+  let arr: unknown = value;
+  if (typeof value === 'string' && value.trim()) {
+    try { arr = yaml.load(value); } catch { arr = []; }
+  }
+  if (!Array.isArray(arr)) return [];
+  return (arr as Array<{ name?: unknown; days?: unknown }>)
+    .filter((m) => m && typeof m.name === 'string')
+    .map((m) => ({ name: String(m.name), days: Number(m.days) || 30 }));
+}
+
+interface MonthsInputProps {
+  fieldKey: string;
+  value: unknown;
+  onSave: (key: string, value: MonthEntry[]) => void;
+}
+
+function MonthsInput({ fieldKey, value, onSave }: MonthsInputProps) {
+  const [months, setMonths] = useState<MonthEntry[]>(() => parseMonthsValue(value));
+
+  function update(next: MonthEntry[]) {
+    setMonths(next);
+    onSave(fieldKey, next);
+  }
+
+  function addMonth() {
+    update([...months, { name: '', days: 30 }]);
+  }
+
+  function removeMonth(i: number) {
+    update(months.filter((_, idx) => idx !== i));
+  }
+
+  function patchMonth(i: number, patch: Partial<MonthEntry>) {
+    update(months.map((m, idx) => idx === i ? { ...m, ...patch } : m));
+  }
+
+  function moveMonth(i: number, dir: -1 | 1) {
+    const next = [...months];
+    const target = i + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[i], next[target]] = [next[target], next[i]];
+    update(next);
+  }
+
+  return (
+    <div className={styles.monthsWrap}>
+      {months.map((m, i) => (
+        <div key={i} className={styles.monthRow}>
+          <input
+            className={styles.monthName}
+            value={m.name}
+            placeholder="Month name"
+            onChange={(e) => patchMonth(i, { name: e.target.value })}
+          />
+          <input
+            type="number"
+            className={styles.monthDays}
+            value={m.days}
+            min={1}
+            max={99}
+            onChange={(e) => patchMonth(i, { days: Math.max(1, Number(e.target.value) || 1) })}
+          />
+          <div className={styles.monthActions}>
+            <button type="button" className={styles.monthMoveBtn} onClick={() => moveMonth(i, -1)} disabled={i === 0} aria-label="Move up">▴</button>
+            <button type="button" className={styles.monthMoveBtn} onClick={() => moveMonth(i, 1)} disabled={i === months.length - 1} aria-label="Move down">▾</button>
+            <button type="button" className={styles.monthRemoveBtn} onClick={() => removeMonth(i)} aria-label="Remove month"><X size={10} /></button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className={styles.monthAddBtn} onClick={addMonth}>
+        <Plus size={11} />
+        <span>Add month</span>
+      </button>
+    </div>
+  );
+}
+
+// ─── Inline relation picker ───────────────────────────────
+
+interface InlineRelationPickerProps {
+  ids: string[];
+  field: FieldDefinition;
+  entities: ReturnType<typeof useVaultData>['entities'];
+  schemas: ReturnType<typeof useVaultData>['schemas'];
+  onSave: (key: string, value: string[]) => void;
+}
+
+function InlineRelationPicker({ ids, field, entities, schemas, onSave }: InlineRelationPickerProps) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const allowedTypes = field.relatesTo ?? [];
+
+  const candidates = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return entities
+      .filter((e) => !e.archived && !ids.includes(e.id))
+      .filter((e) => allowedTypes.length === 0 || allowedTypes.includes(e.type))
+      .filter((e) => !q || e.title.toLowerCase().includes(q) || e.type.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [entities, ids, allowedTypes, query]);
+
+  function addEntity(entityId: string) {
+    onSave(field.key, unique([...ids, entityId]));
+    setQuery('');
+    setOpen(false);
+  }
+
+  return (
+    <div className={styles.relFieldWrap}>
+      {ids.map((id) => {
+        const target = entities.find((e) => e.id === id);
+        const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
+        return (
+          <span key={id} className={styles.relChip}>
+            {tSchema && <DynamicIcon name={tSchema.icon} size={10} color={tSchema.color} />}
+            <span>{target?.title ?? id}</span>
+            <button
+              type="button"
+              className={styles.relChipRemove}
+              onClick={() => onSave(field.key, ids.filter((i) => i !== id))}
+              aria-label="Remove"
+            >
+              <X size={9} />
+            </button>
+          </span>
+        );
+      })}
+      <div className={styles.relInlineSearch}>
+        <input
+          className={styles.relSearchInput}
+          placeholder="Search…"
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+        {open && candidates.length > 0 && (
+          <div className={styles.relDropdown}>
+            {candidates.map((e) => {
+              const sc = schemas.find((s) => s.name === e.type);
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={styles.relDropdownItem}
+                  onMouseDown={(ev) => { ev.preventDefault(); addEntity(e.id); }}
+                >
+                  {sc && <DynamicIcon name={sc.icon} size={10} color={sc.color} />}
+                  <span className={styles.relDropdownTitle}>{e.title}</span>
+                  <span className={styles.relDropdownType}>{e.type}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Fantasy date input ───────────────────────────────────
+
+interface FantasyDateInputProps {
+  fieldKey: string;
+  value: unknown;
+  eraEntities: Entity[];
+  allEntities: Entity[];
+  onSave: (key: string, value: FantasyDate | undefined) => void;
+}
+
+function FantasyDateInput({ fieldKey, value, eraEntities, allEntities, onSave }: FantasyDateInputProps) {
+  const parsed = parseFantasyDate(value);
+  const [eraId, setEraId] = useState(parsed?.era  ?? '');
+  const [year,  setYear]  = useState(parsed?.year  ?? 1);
+  const [month, setMonth] = useState(parsed?.month ?? 1);
+  const [day,   setDay]   = useState(parsed?.day   ?? 1);
+
+  // Derive the calendar from the selected era's 'calendar' relation field.
+  // Falls back to any calendar entity if none linked.
+  const calendar = useMemo((): CalendarDefinition | undefined => {
+    const era = eraEntities.find((e) => e.id === eraId);
+    const calendarId = era
+      ? (Array.isArray(era.frontmatter.calendar)
+          ? (era.frontmatter.calendar as string[])[0]
+          : era.frontmatter.calendar as string | undefined)
+      : undefined;
+    const calEntity = calendarId
+      ? allEntities.find((e) => e.id === calendarId && e.type === 'Calendar')
+      : allEntities.find((e) => e.type === 'Calendar' && !e.archived);
+    return calEntity ? parseCalendarEntity(calEntity) : undefined;
+  }, [eraId, eraEntities, allEntities]);
+
+  const months   = calendar?.months ?? [];
+  const maxDay   = months[month - 1]?.days ?? 30;
+
+  function commit(overrides: Partial<{ eraId: string; year: number; month: number; day: number }> = {}) {
+    const e = overrides.eraId ?? eraId;
+    const y = overrides.year  ?? year;
+    const m = overrides.month ?? month;
+    const cal = overrides.eraId !== undefined
+      ? (() => {
+          const era = eraEntities.find((en) => en.id === overrides.eraId);
+          const calId = era
+            ? (Array.isArray(era.frontmatter.calendar)
+                ? (era.frontmatter.calendar as string[])[0]
+                : era.frontmatter.calendar as string | undefined)
+            : undefined;
+          const calEntity = calId
+            ? allEntities.find((en) => en.id === calId && en.type === 'Calendar')
+            : allEntities.find((en) => en.type === 'Calendar' && !en.archived);
+          return calEntity ? parseCalendarEntity(calEntity) : calendar;
+        })()
+      : calendar;
+    const d = Math.min(overrides.day ?? day, cal?.months[(overrides.month ?? m) - 1]?.days ?? 30);
+    if (!e) { onSave(fieldKey, undefined); return; }
+    onSave(fieldKey, { era: e, year: y, month: m, day: d });
+  }
+
+  const sortedEras = [...eraEntities].sort(
+    (a, b) => Number(a.frontmatter.number ?? 0) - Number(b.frontmatter.number ?? 0),
+  );
+
+  return (
+    <div className={styles.fantasyDateWrap}>
+      {/* Row 1: Era */}
+      <div className={styles.fantasyDateRow}>
+        <select
+          className={styles.fantasyDateSelect}
+          value={eraId}
+          onChange={(e) => { setEraId(e.target.value); commit({ eraId: e.target.value }); }}
+        >
+          <option value="">— Select era —</option>
+          {sortedEras.map((era) => (
+            <option key={era.id} value={era.id}>{era.title}</option>
+          ))}
+        </select>
+      </div>
+      {/* Row 2: Year · Month · Day */}
+      <div className={styles.fantasyDateRow}>
+        <input
+          type="number"
+          className={styles.fantasyDateYear}
+          value={year}
+          min={1}
+          placeholder="Year"
+          onChange={(e) => { const v = Math.max(1, Number(e.target.value) || 1); setYear(v); commit({ year: v }); }}
+        />
+        {months.length > 0 ? (
+          <select
+            className={styles.fantasyDateSelect}
+            value={month}
+            onChange={(e) => { const v = Number(e.target.value); setMonth(v); setDay((d) => Math.min(d, months[v - 1]?.days ?? 30)); commit({ month: v }); }}
+          >
+            {months.map((m, i) => (
+              <option key={m.name} value={i + 1}>{m.name}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="number"
+            className={styles.fantasyDateSelect}
+            value={month}
+            min={1}
+            placeholder="Month"
+            title="Select an era linked to a calendar to get month names"
+            onChange={(e) => { const v = Math.max(1, Number(e.target.value) || 1); setMonth(v); commit({ month: v }); }}
+          />
+        )}
+        <input
+          type="number"
+          className={styles.fantasyDateDay}
+          value={day}
+          min={1}
+          max={maxDay}
+          placeholder="Day"
+          onChange={(e) => { const v = Math.min(maxDay, Math.max(1, Number(e.target.value) || 1)); setDay(v); commit({ day: v }); }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Editable field input ─────────────────────────────────
 
 interface FieldInputProps {
@@ -153,10 +442,10 @@ interface FieldInputProps {
   onSave: (key: string, value: unknown) => void;
   entities?: ReturnType<typeof useVaultData>['entities'];
   schemas?: ReturnType<typeof useVaultData>['schemas'];
-  sourceEntityId?: string;
+  eraEntities?: Entity[];
 }
 
-function FieldInput({ field, value, onSave, entities = [], schemas = [], sourceEntityId }: FieldInputProps) {
+function FieldInput({ field, value, onSave, entities = [], schemas = [], eraEntities = [] }: FieldInputProps) {
   const [localVal, setLocalVal] = useState<string>(
     value === undefined || value === null ? '' : String(value),
   );
@@ -228,51 +517,34 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [], sourceE
 
   if (field.type === 'relation') {
     const ids: string[] = Array.isArray(value) ? (value as string[]) : [];
-    const [relPickerOpen, setRelPickerOpen] = useState(false);
-    const allowedTypes = field.relatesTo ?? [];
-    const source = sourceEntityId ? entities.find((e) => e.id === sourceEntityId) : undefined;
     return (
-      <div className={styles.relFieldWrap}>
-        {ids.map((id) => {
-          const target = entities.find((e) => e.id === id);
-          const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
-          return (
-            <span key={id} className={styles.relChip}>
-              {tSchema && <DynamicIcon name={tSchema.icon} size={10} color={tSchema.color} />}
-              <span>{target?.title ?? id}</span>
-              <button
-                type="button"
-                className={styles.relChipRemove}
-                onClick={() => onSave(field.key, ids.filter((i) => i !== id))}
-                aria-label="Remove"
-              >
-                <X size={9} />
-              </button>
-            </span>
-          );
-        })}
-        <button type="button" className={styles.relFieldAdd} onClick={() => setRelPickerOpen(true)}>
-          <Plus size={10} />
-          Add
-        </button>
-        {source && (
-          <RelationPickerDialog
-            open={relPickerOpen}
-            sourceEntity={source}
-            existingTargetIds={ids}
-            entities={entities}
-            schemas={schemas}
-            defaultKind="relatedTo"
-            filterTypes={allowedTypes.length > 0 ? allowedTypes : undefined}
-            onSelect={(targetId) => onSave(field.key, unique([...ids, targetId]))}
-            onClose={() => setRelPickerOpen(false)}
-          />
-        )}
-      </div>
+      <InlineRelationPicker
+        ids={ids}
+        field={field}
+        entities={entities}
+        schemas={schemas}
+        onSave={onSave}
+      />
     );
   }
 
-  // text, date, select → text input
+  if (field.type === 'months') {
+    return <MonthsInput fieldKey={field.key} value={value} onSave={onSave} />;
+  }
+
+  if (field.type === 'date' && field.dateKind === 'fantasy' && eraEntities.length > 0) {
+    return (
+      <FantasyDateInput
+        fieldKey={field.key}
+        value={value}
+        eraEntities={eraEntities}
+        allEntities={entities}
+        onSave={onSave}
+      />
+    );
+  }
+
+  // text, date (no calendar), select → text input
   return (
     <input
       type="text"
@@ -290,6 +562,8 @@ interface CustomField {
   key: string;
   label: string;
   type: string;
+  dateKind?: string;
+  timelineVisible?: boolean;
 }
 
 const CUSTOM_PROP_TYPES = [
@@ -299,6 +573,9 @@ const CUSTOM_PROP_TYPES = [
   { value: 'textarea', label: 'Long text' },
   { value: 'date',     label: 'Date' },
   { value: 'tags',     label: 'Tags' },
+  { value: 'select',   label: 'Select' },
+  { value: 'relation', label: 'Relation' },
+  { value: 'months',   label: 'Custom Calendar' },
 ];
 
 function toKey(label: string): string {
@@ -316,14 +593,21 @@ export default function PropertiesPanel() {
     })),
   );
   const { entities, schemas } = useVaultData();
+
+  const eraEntities = useMemo(
+    () => entities.filter((e) => e.type === 'Era' && !e.archived),
+    [entities],
+  );
   const patchEntityFrontmatter = useVaultStore((s) => s.patchEntityFrontmatter);
   const addRelation             = useVaultStore((s) => s.addRelation);
   const removeRelation          = useVaultStore((s) => s.removeRelation);
 
-  const [pickerOpen, setPickerOpen]         = useState(false);
-  const [addingProp, setAddingProp]         = useState(false);
-  const [newPropLabel, setNewPropLabel]     = useState('');
-  const [newPropType, setNewPropType]       = useState('text');
+  const [pickerOpen, setPickerOpen]               = useState(false);
+  const [addingProp, setAddingProp]               = useState(false);
+  const [newPropLabel, setNewPropLabel]           = useState('');
+  const [newPropType, setNewPropType]             = useState('text');
+  const [newPropTimeline, setNewPropTimeline]     = useState(false);
+  const [newPropFantasy, setNewPropFantasy]       = useState(false);
   const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
   const [relationsOpen, setRelationsOpen] = useState(() => localStorage.getItem('pp-relations') !== 'false');
   const [statsOpen, setStatsOpen]         = useState(() => localStorage.getItem('pp-stats') !== 'false');
@@ -378,11 +662,24 @@ export default function PropertiesPanel() {
     if (!entity || !newPropLabel.trim()) return;
     const key = toKey(newPropLabel);
     if (!key || customFields.find((f) => f.key === key)) return;
-    const updated: CustomField[] = [...customFields, { key, label: newPropLabel.trim(), type: newPropType }];
+    const newField: CustomField = { key, label: newPropLabel.trim(), type: newPropType };
+    if (newPropType === 'date') {
+      if (newPropTimeline) newField.timelineVisible = true;
+      if (newPropFantasy)  newField.dateKind = 'fantasy';
+    }
+    const updated: CustomField[] = [...customFields, newField];
     void patchEntityFrontmatter(entity, { __customFields: updated });
     setNewPropLabel('');
     setNewPropType('text');
+    setNewPropTimeline(false);
+    setNewPropFantasy(false);
     setAddingProp(false);
+  }
+
+  function handleUpdateCustomPropMeta(key: string, patch: Partial<CustomField>) {
+    if (!entity) return;
+    const updated = customFields.map((f) => f.key === key ? { ...f, ...patch } : f);
+    void patchEntityFrontmatter(entity, { __customFields: updated });
   }
 
   function handleRemoveCustomProp(key: string) {
@@ -479,7 +776,8 @@ export default function PropertiesPanel() {
                             onSave={handleFieldSave}
                             entities={entities}
                             schemas={schemas}
-                            sourceEntityId={entity?.id}
+
+                            eraEntities={eraEntities}
                           />
                         </div>
                         {isTag && tagList.length > 0 && (
@@ -516,12 +814,13 @@ export default function PropertiesPanel() {
                         </div>
                         <div className={styles.fieldValueWrap}>
                           <FieldInput
-                            field={cf}
+                            field={cf as FieldDefinition}
                             value={cfValue}
                             onSave={handleFieldSave}
                             entities={entities}
                             schemas={schemas}
-                            sourceEntityId={entity?.id}
+
+                            eraEntities={eraEntities}
                           />
                         </div>
                         <button
@@ -532,6 +831,32 @@ export default function PropertiesPanel() {
                         >
                           <X size={10} />
                         </button>
+                        {cf.type === 'date' && (
+                          <div className={styles.customDateOptions}>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={!!cf.timelineVisible}
+                              className={`${styles.customDateToggle} ${cf.timelineVisible ? styles.customDateToggleOn : ''}`}
+                              onClick={() => handleUpdateCustomPropMeta(cf.key, { timelineVisible: !cf.timelineVisible })}
+                            >
+                              <ChartLine size={10} />
+                              <span>Timeline</span>
+                            </button>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={cf.dateKind === 'fantasy'}
+                              className={`${styles.customDateToggle} ${cf.dateKind === 'fantasy' ? styles.customDateToggleOn : ''}`}
+                              onClick={() => handleUpdateCustomPropMeta(cf.key, {
+                                dateKind: cf.dateKind === 'fantasy' ? 'single' : 'fantasy',
+                              })}
+                            >
+                              <CalendarStar size={10} />
+                              <span>Fantasy</span>
+                            </button>
+                          </div>
+                        )}
                         {isTag && tagList.length > 0 && (
                           <div className={styles.tagPillsRow}>
                             {tagList.map((tag) => (
@@ -564,15 +889,52 @@ export default function PropertiesPanel() {
                           if (e.key === 'Escape') { setAddingProp(false); setNewPropLabel(''); }
                         }}
                       />
-                      <select
-                        className={styles.addPropSelect}
+                      <Select.Root
                         value={newPropType}
-                        onChange={(e) => setNewPropType(e.target.value)}
+                        onValueChange={(v) => { setNewPropType(v); setNewPropTimeline(false); setNewPropFantasy(false); }}
                       >
-                        {CUSTOM_PROP_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>{t.label}</option>
-                        ))}
-                      </select>
+                        <Select.Trigger asChild>
+                          <button className={styles.addPropTypeBtn}>
+                            <span>{CUSTOM_PROP_TYPES.find((t) => t.value === newPropType)?.label ?? newPropType}</span>
+                            <CaretDown size={9} />
+                          </button>
+                        </Select.Trigger>
+                        <Select.Portal>
+                          <Select.Content className={styles.typeSelectContent} position="popper" sideOffset={4}>
+                            <Select.Viewport>
+                              {CUSTOM_PROP_TYPES.map((t) => (
+                                <Select.Item key={t.value} value={t.value} className={styles.typeSelectItem}>
+                                  <Select.ItemText>{t.label}</Select.ItemText>
+                                </Select.Item>
+                              ))}
+                            </Select.Viewport>
+                          </Select.Content>
+                        </Select.Portal>
+                      </Select.Root>
+                      {newPropType === 'date' && (
+                        <div className={styles.customDateOptions}>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={newPropTimeline}
+                            className={`${styles.customDateToggle} ${newPropTimeline ? styles.customDateToggleOn : ''}`}
+                            onClick={() => setNewPropTimeline((v) => !v)}
+                          >
+                            <ChartLine size={10} />
+                            <span>Timeline</span>
+                          </button>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={newPropFantasy}
+                            className={`${styles.customDateToggle} ${newPropFantasy ? styles.customDateToggleOn : ''}`}
+                            onClick={() => setNewPropFantasy((v) => !v)}
+                          >
+                            <CalendarStar size={10} />
+                            <span>Fantasy</span>
+                          </button>
+                        </div>
+                      )}
                       <div className={styles.addPropActions}>
                         <button
                           type="button"
