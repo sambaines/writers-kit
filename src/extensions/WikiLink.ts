@@ -74,9 +74,10 @@ export const WikiLink = Node.create<WikiLinkOptions>({
   addInputRules() {
     return [
       nodeInputRule({
-        find: /\[\[([^\]]+)\]\]$/,
+        // Matches [[Title]] and [[Title|id]]
+        find: /\[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/,
         type: this.type,
-        getAttributes: (match) => ({ title: match[1], id: null }),
+        getAttributes: (match) => ({ title: match[1].trim(), id: match[2]?.trim() ?? null }),
       }),
     ];
   },
@@ -96,9 +97,11 @@ export const WikiLink = Node.create<WikiLinkOptions>({
       markdown: {
         serialize(
           state: { write: (text: string) => void },
-          node: { attrs: { title: string } },
+          node: { attrs: { title: string; id: string | null } },
         ) {
-          state.write(`[[${node.attrs.title}]]`);
+          const { title, id } = node.attrs;
+          // Embed the entity ID so links survive title renames
+          state.write(id ? `[[${title}|${id}]]` : `[[${title}]]`);
         },
       },
     };

@@ -153,6 +153,19 @@ export default function EditorPane() {
     ],
     editorProps: {
       attributes: { class: styles.proseMirror },
+      handleClick: (_view, _pos, event) => {
+        const el = (event.target as HTMLElement).closest('[data-wiki-link]');
+        if (!el) return false;
+        const id    = el.getAttribute('data-wiki-id');
+        const title = el.getAttribute('data-wiki-link');
+        // Prefer stable ID lookup; fall back to case-insensitive title match
+        const entity =
+          (id    && entitiesRef.current.find((e) => e.id === id)) ||
+          (title && entitiesRef.current.find((e) => e.title.toLowerCase() === title.toLowerCase())) ||
+          null;
+        if (entity) useUIStore.getState().setActiveEntityId(entity.id);
+        return true; // consume event so ProseMirror doesn't select the atom
+      },
       handlePaste: (view, event) => {
         const items = Array.from(event.clipboardData?.items ?? []);
         for (const item of items) {
@@ -242,8 +255,9 @@ export default function EditorPane() {
 
     prevEntityIdRef.current = activeEntity.id;
 
-    // Preprocess body to convert [[WikiLinks]] to parseable HTML
-    const preprocessed = preprocessMarkdownForWikiLinks(activeEntity.body);
+    // Preprocess body to convert [[WikiLinks]] to parseable HTML; pass entities
+    // so [[Title|id]] links heal their title if the entity was renamed.
+    const preprocessed = preprocessMarkdownForWikiLinks(activeEntity.body, entitiesRef.current);
 
     isLoadingRef.current = true;
     editor.commands.setContent(preprocessed);
@@ -293,7 +307,7 @@ export default function EditorPane() {
       // Re-parse body from the raw content and load it into the rich editor
       const { content: body } = matter(rawRef.current.value);
       const trimmedBody = body.replace(/^\n/, '');
-      const preprocessed = preprocessMarkdownForWikiLinks(trimmedBody);
+      const preprocessed = preprocessMarkdownForWikiLinks(trimmedBody, entitiesRef.current);
       isLoadingRef.current = true;
       editor.commands.setContent(preprocessed);
       isLoadingRef.current = false;
@@ -318,6 +332,25 @@ export default function EditorPane() {
     },
     [editor], // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  // ─── Sync WikiLink display titles after entity switch or rename ────
+  // Runs after the entity-switch effect (declaration order) so the document
+  // is already loaded. Patches any WikiLink nodes whose stored title attr
+  // doesn't match the entity's current name.
+  useEffect(() => {
+    if (!editor) return;
+    let tr = editor.state.tr;
+    let changed = false;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'wikiLink' || !node.attrs.id) return;
+      const currentTitle = entities.find((e) => e.id === node.attrs.id)?.title;
+      if (currentTitle && currentTitle !== node.attrs.title) {
+        tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, title: currentTitle });
+        changed = true;
+      }
+    });
+    if (changed) editor.view.dispatch(tr);
+  }, [editor, activeEntity?.id, entities]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Flush save on unmount
   useEffect(() => {

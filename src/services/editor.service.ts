@@ -135,23 +135,44 @@ export function buildRawContent(entity: Entity, currentBody: string): string {
   return matter.stringify(currentBody, entity.frontmatter as Record<string, unknown>);
 }
 
-/** Preprocess markdown body so existing [[WikiLinks]] become parseable HTML spans. */
-export function preprocessMarkdownForWikiLinks(markdown: string): string {
-  return markdown.replace(/\[\[([^\]]+)\]\]/g, (_, title: string) =>
-    `<span data-wiki-link="${title.replace(/"/g, '&quot;')}">[[${title}]]</span>`,
-  );
+/**
+ * Preprocess markdown body so [[WikiLinks]] become parseable HTML spans that
+ * TipTap can parse into WikiLink nodes.
+ * Handles both [[Title]] (legacy) and [[Title|id]] (stable) formats.
+ * For legacy links, resolves the title to an entity ID so the next save
+ * upgrades them to the stable format.
+ * Note: title display healing is handled live by the WikiLinkView NodeView,
+ * so we only need to pass through the correct attributes here.
+ */
+export function preprocessMarkdownForWikiLinks(markdown: string, entities: Entity[] = []): string {
+  const esc = (s: string) => s.replace(/"/g, '&quot;');
+  return markdown.replace(/\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/g, (_, rawTitle: string, rawId: string | undefined) => {
+    const title = rawTitle.trim();
+    // Use embedded ID if present, otherwise try to resolve by title
+    const id = rawId?.trim() ?? entities.find((e) => e.title === title)?.id ?? null;
+    const idAttr = id ? ` data-wiki-id="${esc(id)}"` : '';
+    return `<span data-wiki-link="${esc(title)}"${idAttr}>[[${title}]]</span>`;
+  });
 }
 
 /* ─── WikiLink relation sync helpers ────────────────────── */
 
-/** Extract entity IDs referenced by [[Title]] links in a body string. */
+/** Extract entity IDs referenced by [[Title]] or [[Title|id]] links in a body string. */
 function resolveWikiLinks(body: string, sourceId: string): string[] {
-  const titles = [...body.matchAll(/\[\[([^\]]+)\]\]/g)].map((m) => m[1]);
   const { entities } = useVaultStore.getState();
+  const matches = [...body.matchAll(/\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/g)];
   return unique(
-    titles
-      .map((title) => entities.find((e) => e.title === title && e.id !== sourceId)?.id)
-      .filter((id): id is string => id !== undefined),
+    matches
+      .map(([, title, id]) => {
+        const trimId = id?.trim();
+        const trimTitle = title.trim();
+        // Prefer ID lookup (stable across renames), fall back to title
+        const entity = trimId
+          ? entities.find((e) => e.id === trimId && e.id !== sourceId)
+          : entities.find((e) => e.title === trimTitle && e.id !== sourceId);
+        return entity?.id ?? null;
+      })
+      .filter((id): id is string => id !== null),
   );
 }
 
