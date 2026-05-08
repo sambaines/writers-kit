@@ -244,6 +244,9 @@ function InlineRelationPicker({ ids, field, entities, schemas, onSave }: InlineR
   const [open, setOpen] = useState(false);
   const allowedTypes = field.relatesTo ?? [];
 
+  // Typed relations (relatesTo defined) are single-value; untyped allow multiple
+  const isSingle = allowedTypes.length > 0;
+
   const candidates = useMemo(() => {
     const q = query.toLowerCase().trim();
     return entities
@@ -279,35 +282,39 @@ function InlineRelationPicker({ ids, field, entities, schemas, onSave }: InlineR
           </span>
         );
       })}
-      <div className={styles.relInlineSearch}>
-        <input
-          className={styles.relSearchInput}
-          placeholder="Search…"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-        />
-        {open && candidates.length > 0 && (
-          <div className={styles.relDropdown}>
-            {candidates.map((e) => {
-              const sc = schemas.find((s) => s.name === e.type);
-              return (
-                <button
-                  key={e.id}
-                  type="button"
-                  className={styles.relDropdownItem}
-                  onMouseDown={(ev) => { ev.preventDefault(); addEntity(e.id); }}
-                >
-                  {sc && <DynamicIcon name={sc.icon} size={10} color={sc.color} />}
-                  <span className={styles.relDropdownTitle}>{e.title}</span>
-                  <span className={styles.relDropdownType}>{e.type}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {(!isSingle || ids.length === 0) && (
+        <div className={styles.relInlineSearch}>
+          <input
+            className={styles.relSearchInput}
+            placeholder="Search…"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+          />
+          {open && candidates.length > 0 && (
+            <div className={styles.relDropdown}>
+              {candidates.map((e) => {
+                const sc = schemas.find((s) => s.name === e.type);
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    className={styles.relDropdownItem}
+                    onMouseDown={(ev) => { ev.preventDefault(); addEntity(e.id); }}
+                  >
+                    {sc && <DynamicIcon name={sc.icon} size={10} color={sc.color} />}
+                    <span className={styles.relDropdownTitle}>{e.title}</span>
+                    {allowedTypes.length !== 1 && (
+                      <span className={styles.relDropdownType}>{e.type}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
