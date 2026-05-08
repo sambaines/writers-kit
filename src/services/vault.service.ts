@@ -123,164 +123,19 @@ export async function scanVault(vaultPath: string): Promise<VaultScanResult> {
   return { schemas, entities };
 }
 
-/* ─── Default schema templates ──────────────────────────── */
-
-const DEFAULT_SCHEMAS: Record<string, string> = {
-  'Note.md': `---
-__type: _schema
-name: Note
-icon: Note
-color: "#8A8A96"
-fields: []
----
-`,
-  'World.md': `---
-__type: _schema
-name: World
-icon: Globe
-color: "#4A9EFF"
-fields:
-  - key: description
-    label: Description
-    type: textarea
-  - key: tags
-    label: Tags
-    type: tags
----
-`,
-  'Character.md': `---
-__type: _schema
-name: Character
-icon: User
-color: "#7A6DF4"
-fields:
-  - key: species
-    label: Species
-    type: text
-  - key: born
-    label: Born
-    type: date
-    dateKind: single
-    timelineVisible: true
-  - key: died
-    label: Died
-    type: date
-    dateKind: single
-    timelineVisible: true
-  - key: alive
-    label: Alive
-    type: boolean
-  - key: affiliation
-    label: Affiliation
-    type: text
-  - key: tags
-    label: Tags
-    type: tags
----
-`,
-  'Chapter.md': `---
-__type: _schema
-name: Chapter
-icon: BookOpen
-color: "#4ED898"
-fields:
-  - key: number
-    label: Chapter No.
-    type: number
-  - key: pov
-    label: POV Character
-    type: relation
-    relatesTo: [Character]
-  - key: tags
-    label: Tags
-    type: tags
----
-`,
-  'Lore.md': `---
-__type: _schema
-name: Lore
-icon: Scroll
-color: "#F0A429"
-fields:
-  - key: tags
-    label: Tags
-    type: tags
----
-`,
-  'Era.md': `---
-__type: _schema
-name: Era
-icon: Timer
-color: "#FF5370"
-fields:
-  - key: number
-    label: Order
-    type: number
-  - key: end
-    label: Duration (years)
-    type: number
-  - key: calendar
-    label: Calendar
-    type: relation
-    relatesTo:
-      - Calendar
-  - key: tags
-    label: Tags
-    type: tags
----
-`,
-  'Location.md': `---
-__type: _schema
-name: Location
-icon: MapPin
-color: "#FF9057"
-fields:
-  - key: region
-    label: Region
-    type: text
-  - key: tags
-    label: Tags
-    type: tags
----
-`,
-  'Calendar.md': `---
-__type: _schema
-name: Calendar
-icon: CalendarBlank
-color: "#50E3A4"
-fields:
-  - key: months
-    label: Months
-    type: months
-  - key: weekdays
-    label: Days per Week
-    type: number
----
-`,
-};
-
 /* ─── Vault initialisation ──────────────────────────────── */
 
-/** Creates .schemas/ and .writerkit/ for a vault.
- *  seedDefaults: write default schema files for any that don't exist yet.
- *  Safe to call on existing vaults. */
-export async function initVault(vaultPath: string, seedDefaults = false): Promise<void> {
+/** Creates .schemas/ and .writerkit/ for a vault. Safe to call on existing vaults. */
+export async function initVault(vaultPath: string): Promise<void> {
   const schemasDir   = joinPath(vaultPath, '.schemas');
   const writerKitDir = joinPath(vaultPath, '.writerkit');
 
   await Promise.all([ensureDir(schemasDir), ensureDir(writerKitDir)]);
 
-  if (seedDefaults) {
-    await Promise.all(
-      Object.entries(DEFAULT_SCHEMAS).map(async ([filename, content]) => {
-        const filePath = joinPath(schemasDir, filename);
-        const exists = await fileExists(filePath);
-        if (!exists) {
-          console.log('[vault] seeding schema:', filename);
-          await writeTextFile(filePath, content);
-        }
-      }),
-    );
+  // Ensure binary files are gitignored but .md files (e.g. calendar.md) are tracked
+  const writerKitGitignore = joinPath(writerKitDir, '.gitignore');
+  if (!(await fileExists(writerKitGitignore))) {
+    await writeTextFile(writerKitGitignore, '*.db\n*.sqlite\n*.sqlite3\n');
   }
 }
 

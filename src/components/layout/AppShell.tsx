@@ -4,6 +4,7 @@ import TypeNav from './TypeNav';
 import EntityList from './EntityList';
 import EditorPane from '../editor/EditorPane';
 import PropertiesPanel from '../properties/PropertiesPanel';
+import CalendarSettingsPanel from '../timeline/CalendarSettingsPanel';
 import ChatPanel from '../chat/ChatPanel';
 import TimelineView from '../timeline/TimelineView';
 import StatusBar from './StatusBar';
@@ -40,7 +41,10 @@ export default function AppShell() {
           className={clsx(styles.propsWrapper, !propertiesPanelOpen && styles.propsClosed)}
           aria-hidden={!propertiesPanelOpen}
         >
-          {activeRightPanel === 'chat' ? <ChatPanel /> : <PropertiesPanel />}
+          {activeView === 'timeline'
+            ? <CalendarSettingsPanel />
+            : activeRightPanel === 'chat' ? <ChatPanel /> : <PropertiesPanel />
+          }
         </div>
       </div>
       <CommitDrawer />

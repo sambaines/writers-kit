@@ -77,10 +77,10 @@ export default function TypeNav() {
             {/* All Notes / Archive */}
             <div className={styles.section}>
               <button
-                className={clsx(styles.navItem, activeTypeId === '__all' && styles.active)}
+                className={clsx(styles.navItem, activeTypeId === '__all' && activeView !== 'timeline' && styles.active)}
                 onClick={() => handleNavClick('__all')}
               >
-                <Files size={15} weight={activeTypeId === '__all' ? 'fill' : 'regular'} />
+                <Files size={15} weight={activeTypeId === '__all' && activeView !== 'timeline' ? 'fill' : 'regular'} />
                 <span>All Files</span>
                 <span className={styles.count}>{allCount}</span>
               </button>

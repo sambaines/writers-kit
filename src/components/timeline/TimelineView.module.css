@@ -50,6 +50,30 @@
 .chipActive {}
 
 /* ─── Calendar picker ────────────────────────────────────── */
+/* ─── Era bands ─────────────────────────────────────────── */
+.eraBand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.eraBandLabel {
+  position: absolute;
+  right: var(--space-3);
+  top: 4px;
+  font-size: 10px;
+  color: var(--text-disabled);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* ─── (removed) calendar picker ─────────────────────────── */
 .calendarPicker {
   height: 26px;
   padding: 0 var(--space-2);

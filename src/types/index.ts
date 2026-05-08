@@ -6,19 +6,16 @@ export type FieldType =
   | 'number'
   | 'boolean'
   | 'date'
+  | 'custom-date'
+  | 'custom-date-range'
   | 'tags'
   | 'select'
-  | 'relation'
-  | 'months';
-
-export type DateKind = 'single' | 'range' | 'fantasy';
+  | 'relation';
 
 export interface FieldDefinition {
   key: string;
   label: string;
   type: FieldType;
-  dateKind?: DateKind;
-  timelineVisible?: boolean;
   options?: string[];        // for 'select' fields
   relatesTo?: string[];      // for 'relation' fields — list of schema names
 }
@@ -123,31 +120,42 @@ export interface GitCommit {
 
 /* ─── Calendar Types ────────────────────────────────────── */
 
-export interface CalendarMonth {
+export interface CalendarMonthDef {
   name: string;
   days: number;
 }
 
-export interface CalendarDefinition {
-  id: string;
+export interface LeapYearRule {
+  interval: number;   // add extra days every N years
+  month: number;      // 1-based index of the month that receives extra days
+  extraDays: number;  // how many extra days are added
+}
+
+export interface EraDef {
   name: string;
-  months: CalendarMonth[];
-  weekdays: number;
+  startYear: number;
+  endYear: number;    // 0 = open-ended / ongoing
+  color?: string;     // hex color for the era band on the timeline
 }
 
-/** A date in a fantasy calendar: era entity ID + year/month/day within that era. */
-export interface FantasyDate {
-  era: string;   // entity ID of the Era entity
-  year: number;  // 1-based year within the era
-  month: number; // 1-based month index
-  day: number;   // 1-based day within the month
+/** The vault's canonical calendar, stored in .writerkit/calendar.md */
+export interface VaultCalendar {
+  name: string;
+  months: CalendarMonthDef[];
+  leapYear?: LeapYearRule;
+  eras: EraDef[];
 }
 
-/** An Era entity with its cumulative absolute start position on the linear axis. */
-export interface EraWithOffset {
-  id: string;
-  title: string;
-  order: number;
-  duration: number;        // total years in this era (= value of 'end' field)
-  cumulativeStart: number; // absolute linear position where this era begins
+/** A date in a custom calendar: absolute year + month + day. */
+export interface CustomDate {
+  year: number;   // absolute year, may be negative (before year 1)
+  month: number;  // 1-based month index
+  day: number;    // 1-based day within the month
+}
+
+/** A date range in a custom calendar. end is absent when ongoing. */
+export interface CustomDateRange {
+  start: CustomDate;
+  end?: CustomDate;
+  ongoing: boolean;
 }

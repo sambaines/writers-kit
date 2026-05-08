@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useUIStore } from '../../store/ui.store';
-import { useVaultData } from '../../store/vault.store';
+import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import {
   buildTimelineItems,
-  computeEraOffsets,
-  parseCalendarEntity,
   generateTicks,
+  getEraBands,
   yearToY,
   type TimelineSpan,
 } from '../../services/timeline.service';
@@ -14,77 +13,70 @@ import DynamicIcon from '../ui/DynamicIcon';
 import { MagnifyingGlassPlus, MagnifyingGlassMinus, ChartLine } from '@phosphor-icons/react';
 import styles from './TimelineView.module.css';
 
-const TOP_PAD      = 56;
-const MIN_SPACING  = 22;
-const DEFAULT_PX   = 60;
-const MIN_PX       = 6;
-const MAX_PX       = 600;
-const AXIS_X       = 88;
-const SPAN_BAR_W   = 4;
-const SPAN_LANE_W  = 12;
-const SPAN_OFFSET  = 8;
-const ERA_BAR_W    = 6;
+const TOP_PAD     = 56;
+const MIN_SPACING = 22;
+const DEFAULT_PX  = 60;
+const MIN_PX      = 6;
+const MAX_PX      = 600;
+const AXIS_X      = 88;
+const SPAN_BAR_W  = 4;
+const SPAN_LANE_W = 12;
+const SPAN_OFFSET = 8;
 
 export default function TimelineView() {
-  const {
-    setActiveEntityId, setPropertiesPanelOpen,
-    activeCalendarId, setActiveCalendarId,
-  } = useUIStore(
+  const { setActiveEntityId, setPropertiesPanelOpen } = useUIStore(
     useShallow((s) => ({
       setActiveEntityId:      s.setActiveEntityId,
       setPropertiesPanelOpen: s.setPropertiesPanelOpen,
-      activeCalendarId:       s.activeCalendarId,
-      setActiveCalendarId:    s.setActiveCalendarId,
     })),
   );
   const { entities, schemas } = useVaultData();
+  const calendar = useVaultStore((s) => s.calendar);
 
-  const [filterTypes, setFilterTypes] = useState<string[]>([]);
-  const [pxPerYear, setPxPerYear]     = useState(DEFAULT_PX);
+  const [pxPerYear, setPxPerYear] = useState(DEFAULT_PX);
 
-  // Compute era offsets from all Era entities (ordering by 'number' field)
-  const eraOffsets = useMemo(() => computeEraOffsets(entities), [entities]);
-
-  // Parse the active calendar entity
-  const calendarEntities = useMemo(
-    () => entities.filter((e) => e.type === 'Calendar' && !e.archived),
-    [entities],
-  );
-  const activeCalendarEntity = calendarEntities.find((e) => e.id === activeCalendarId);
-  const activeCalendar = activeCalendarEntity ? parseCalendarEntity(activeCalendarEntity) : undefined;
-
-  // Schemas that have timeline-visible date fields, plus Era (always shown)
+  // Schemas with any timeline-visible date fields
   const timelineSchemas = useMemo(
-    () => schemas.filter(
-      (s) => s.name === 'Era' || s.fields.some((f) => f.type === 'date' && f.timelineVisible),
-    ),
+    () => schemas.filter((s) => s.fields.some((f) => f.type === 'date' && f.timelineVisible)),
     [schemas],
   );
 
-  const activeFilter = filterTypes.length > 0 ? filterTypes : undefined;
   const rawItems = useMemo(
-    () => buildTimelineItems(entities, schemas, eraOffsets, activeCalendar, activeFilter),
-    [entities, schemas, eraOffsets, activeCalendar, activeFilter], // eslint-disable-line react-hooks/exhaustive-deps
+    () => buildTimelineItems(entities, schemas, calendar ?? undefined),
+    [entities, schemas, calendar],
   );
 
-  const { visMin, totalHeight, ticks, positionedItems, spanLaneMap } = useMemo(() => {
-    if (rawItems.length === 0) {
+  const { visMin, totalHeight, ticks, eraBands, positionedItems, spanLaneMap } = useMemo(() => {
+    const hasEras = calendar && calendar.eras.length > 0;
+
+    if (rawItems.length === 0 && !hasEras) {
       return {
-        visMin: 0, totalHeight: 400, ticks: [],
+        visMin: 0, totalHeight: 400, ticks: [], eraBands: [],
         positionedItems: [], spanLaneMap: new Map<string, number>(),
       };
     }
 
-    const allLinear = rawItems.flatMap((item) =>
-      item.kind === 'span' ? [item.startLinear, item.endLinear] : [item.linear],
-    );
-    const minL = Math.min(...allLinear);
-    const maxL = Math.max(...allLinear);
-    const visMin = minL;
-    const visMax = maxL;
+    let minL: number, maxL: number;
+    if (rawItems.length === 0) {
+      // No events — derive visible range from era boundaries
+      minL = Math.min(...calendar!.eras.map((e) => e.startYear));
+      const closedEnds = calendar!.eras.filter((e) => e.endYear !== 0).map((e) => e.endYear);
+      maxL = closedEnds.length > 0 ? Math.max(...closedEnds) : minL + 1000;
+    } else {
+      const allLinear = rawItems.flatMap((item) => {
+        if (item.kind === 'span') {
+          // Exclude endLinear for ongoing spans — they extend to canvas bottom, not a real date
+          return item.ongoing ? [item.startLinear] : [item.startLinear, item.endLinear];
+        }
+        return [item.linear];
+      });
+      minL = Math.min(...allLinear);
+      maxL = Math.max(...allLinear);
+    }
 
-    const ticks = generateTicks(visMin, visMax, pxPerYear, eraOffsets);
-    const naturalHeight = TOP_PAD * 2 + (visMax - visMin) * pxPerYear;
+    const ticks    = generateTicks(minL, maxL, pxPerYear, calendar ?? undefined);
+    const eraBands = calendar ? getEraBands(calendar, maxL) : [];
+    const naturalHeight = TOP_PAD * 2 + (maxL - minL) * pxPerYear;
 
     // Assign overlapping spans to horizontal lanes
     const spanItems = rawItems.filter((i): i is TimelineSpan => i.kind === 'span');
@@ -101,10 +93,10 @@ export default function TimelineView() {
     let lastPointY = -Infinity;
     const positionedItems = rawItems.map((item) => {
       if (item.kind === 'span') {
-        const y = yearToY(item.startLinear, visMin, pxPerYear, TOP_PAD);
+        const y = yearToY(item.startLinear, minL, pxPerYear, TOP_PAD);
         return { item, y };
       }
-      const natural = yearToY(item.linear, visMin, pxPerYear, TOP_PAD);
+      const natural = yearToY(item.linear, minL, pxPerYear, TOP_PAD);
       const y = Math.max(natural, lastPointY + MIN_SPACING);
       lastPointY = y;
       return { item, y };
@@ -115,14 +107,8 @@ export default function TimelineView() {
       : 0;
     const totalHeight = Math.max(naturalHeight, lastItemY + TOP_PAD);
 
-    return { visMin, totalHeight, ticks, positionedItems, spanLaneMap };
-  }, [rawItems, pxPerYear, eraOffsets]);
-
-  function toggleFilter(typeName: string) {
-    setFilterTypes((prev) =>
-      prev.includes(typeName) ? prev.filter((t) => t !== typeName) : [...prev, typeName],
-    );
-  }
+    return { visMin: minL, totalHeight, ticks, eraBands, positionedItems, spanLaneMap };
+  }, [rawItems, pxPerYear, calendar]);
 
   function zoom(factor: number) {
     setPxPerYear((prev) => Math.min(MAX_PX, Math.max(MIN_PX, prev * factor)));
@@ -145,7 +131,7 @@ export default function TimelineView() {
     );
   }
 
-  if (rawItems.length === 0) {
+  if (rawItems.length === 0 && (!calendar || calendar.eras.length === 0)) {
     return (
       <div className={styles.emptyState}>
         <ChartLine size={40} weight="thin" color="var(--text-tertiary)" />
@@ -161,42 +147,6 @@ export default function TimelineView() {
     <div className={styles.root}>
       {/* Toolbar */}
       <div className={styles.toolbar}>
-        <div className={styles.filterChips}>
-          {timelineSchemas.map((schema) => {
-            const active = filterTypes.includes(schema.name);
-            return (
-              <button
-                key={schema.id}
-                className={`${styles.chip} ${active ? styles.chipActive : ''}`}
-                style={active ? {
-                  borderColor: schema.color,
-                  color:       schema.color,
-                  background:  `${schema.color}22`,
-                } : undefined}
-                onClick={() => toggleFilter(schema.name)}
-              >
-                <DynamicIcon name={schema.icon} size={11} color={active ? schema.color : undefined} />
-                <span>{schema.name}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Calendar picker */}
-        {calendarEntities.length > 0 && (
-          <select
-            className={styles.calendarPicker}
-            value={activeCalendarId ?? ''}
-            onChange={(e) => setActiveCalendarId(e.target.value || null)}
-            title="Select calendar"
-          >
-            <option value="">No calendar</option>
-            {calendarEntities.map((c) => (
-              <option key={c.id} value={c.id}>{c.title}</option>
-            ))}
-          </select>
-        )}
-
         <div className={styles.zoomControls}>
           <button className={styles.zoomBtn} onClick={() => zoom(1.5)} aria-label="Zoom in">
             <MagnifyingGlassPlus size={14} />
@@ -210,6 +160,55 @@ export default function TimelineView() {
       {/* Scrollable canvas */}
       <div className={styles.scrollArea}>
         <div className={styles.canvas} style={{ height: totalHeight }}>
+
+          {/* Era bands (background shading) */}
+          {(() => {
+            let stackedLabelY = 6;
+            return eraBands.map((band) => {
+              const y1 = yearToY(band.startLinear, visMin, pxPerYear, TOP_PAD);
+              const y2 = yearToY(band.endLinear,   visMin, pxPerYear, TOP_PAD);
+              // Clamp band to the visible canvas area to avoid huge off-screen elements
+              const clampedTop    = Math.max(y1, 0);
+              const clampedBottom = Math.max(clampedTop + 4, Math.min(y2, totalHeight));
+              const clampedHeight = clampedBottom - clampedTop;
+
+              // Stack labels when multiple eras are all clamped to the top
+              let labelTopInBand: number;
+              if (y1 < 4) {
+                labelTopInBand = stackedLabelY - clampedTop;
+                stackedLabelY += 20;
+              } else {
+                labelTopInBand = 4;
+              }
+
+              const bandBg    = band.color ? `${band.color}18` : undefined;
+              const bandBorder = band.color ? `${band.color}40` : undefined;
+
+              return (
+                <div
+                  key={band.name}
+                  className={styles.eraBand}
+                  style={{
+                    top: clampedTop,
+                    height: clampedHeight,
+                    ...(bandBg    ? { background: bandBg }        : {}),
+                    ...(bandBorder ? { borderTopColor: bandBorder } : {}),
+                  }}
+                >
+                  <span
+                    className={styles.eraBandLabel}
+                    style={{
+                      top: labelTopInBand,
+                      ...(band.color ? { color: band.color } : {}),
+                    }}
+                  >
+                    {band.name}
+                  </span>
+                </div>
+              );
+            });
+          })()}
+
           {/* Axis line */}
           <div className={styles.axisLine} style={{ left: AXIS_X }} />
 
@@ -236,10 +235,11 @@ export default function TimelineView() {
           {positionedItems.map(({ item, y }) => {
             if (item.kind === 'span') {
               const lane      = spanLaneMap.get(item.entityId) ?? 0;
-              const barW      = item.isEra ? ERA_BAR_W : SPAN_BAR_W;
               const barLeft   = AXIS_X + SPAN_OFFSET + lane * SPAN_LANE_W;
-              const labelLeft = barLeft + barW + 6;
-              const y2        = yearToY(item.endLinear, visMin, pxPerYear, TOP_PAD);
+              const labelLeft = barLeft + SPAN_BAR_W + 6;
+              const y2        = item.ongoing
+                ? totalHeight
+                : yearToY(item.endLinear, visMin, pxPerYear, TOP_PAD);
               const spanHeight = Math.max(8, y2 - y);
 
               return (
@@ -249,9 +249,11 @@ export default function TimelineView() {
                     style={{
                       left:       barLeft,
                       height:     spanHeight,
-                      width:      barW,
-                      background: item.entityColor,
-                      opacity:    item.isEra ? 0.4 : 0.7,
+                      width:      SPAN_BAR_W,
+                      background: item.ongoing
+                        ? `linear-gradient(to bottom, ${item.entityColor}b3 60%, transparent)`
+                        : item.entityColor,
+                      opacity: item.ongoing ? 1 : 0.7,
                     }}
                   />
                   <button

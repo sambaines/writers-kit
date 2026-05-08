@@ -5,7 +5,7 @@ import {
   X, Hash, Calendar, Tag, TextT,
   ArrowUpRight, Plus, ArrowsOut,
   FileText, Clock, PencilLine, Eye, CaretUpDown, Shapes,
-  CaretDown, CaretRight, ChartLine, CalendarStar,
+  CaretDown, CaretRight,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -13,10 +13,9 @@ import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
-import yaml from 'js-yaml';
-import { parseCalendarEntity, parseFantasyDate } from '../../services/timeline.service';
+import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
 import styles from './PropertiesPanel.module.css';
-import type { FieldDefinition, RelationKind, CalendarDefinition, FantasyDate, Entity } from '../../types';
+import type { FieldDefinition, RelationKind, CustomDate, CustomDateRange } from '../../types';
 
 function unique<T>(arr: T[]): T[] {
   return [...new Set(arr)];
@@ -56,7 +55,9 @@ function formatFileSize(bytes: number): string {
 function FieldIcon({ type }: { type: string }) {
   const size = 12;
   switch (type) {
-    case 'date':    return <Calendar size={size} />;
+    case 'date':
+    case 'custom-date':
+    case 'custom-date-range': return <Calendar size={size} />;
     case 'tags':    return <Tag size={size} />;
     case 'number':  return <Hash size={size} />;
     default:        return <TextT size={size} />;
@@ -149,85 +150,6 @@ function TagInput({ fieldKey, value, onSave, entities }: TagInputProps) {
 
 // ─── Months input ─────────────────────────────────────────
 
-interface MonthEntry { name: string; days: number; }
-
-function parseMonthsValue(value: unknown): MonthEntry[] {
-  let arr: unknown = value;
-  if (typeof value === 'string' && value.trim()) {
-    try { arr = yaml.load(value); } catch { arr = []; }
-  }
-  if (!Array.isArray(arr)) return [];
-  return (arr as Array<{ name?: unknown; days?: unknown }>)
-    .filter((m) => m && typeof m.name === 'string')
-    .map((m) => ({ name: String(m.name), days: Number(m.days) || 30 }));
-}
-
-interface MonthsInputProps {
-  fieldKey: string;
-  value: unknown;
-  onSave: (key: string, value: MonthEntry[]) => void;
-}
-
-function MonthsInput({ fieldKey, value, onSave }: MonthsInputProps) {
-  const [months, setMonths] = useState<MonthEntry[]>(() => parseMonthsValue(value));
-
-  function update(next: MonthEntry[]) {
-    setMonths(next);
-    onSave(fieldKey, next);
-  }
-
-  function addMonth() {
-    update([...months, { name: '', days: 30 }]);
-  }
-
-  function removeMonth(i: number) {
-    update(months.filter((_, idx) => idx !== i));
-  }
-
-  function patchMonth(i: number, patch: Partial<MonthEntry>) {
-    update(months.map((m, idx) => idx === i ? { ...m, ...patch } : m));
-  }
-
-  function moveMonth(i: number, dir: -1 | 1) {
-    const next = [...months];
-    const target = i + dir;
-    if (target < 0 || target >= next.length) return;
-    [next[i], next[target]] = [next[target], next[i]];
-    update(next);
-  }
-
-  return (
-    <div className={styles.monthsWrap}>
-      {months.map((m, i) => (
-        <div key={i} className={styles.monthRow}>
-          <input
-            className={styles.monthName}
-            value={m.name}
-            placeholder="Month name"
-            onChange={(e) => patchMonth(i, { name: e.target.value })}
-          />
-          <input
-            type="number"
-            className={styles.monthDays}
-            value={m.days}
-            min={1}
-            max={99}
-            onChange={(e) => patchMonth(i, { days: Math.max(1, Number(e.target.value) || 1) })}
-          />
-          <div className={styles.monthActions}>
-            <button type="button" className={styles.monthMoveBtn} onClick={() => moveMonth(i, -1)} disabled={i === 0} aria-label="Move up">▴</button>
-            <button type="button" className={styles.monthMoveBtn} onClick={() => moveMonth(i, 1)} disabled={i === months.length - 1} aria-label="Move down">▾</button>
-            <button type="button" className={styles.monthRemoveBtn} onClick={() => removeMonth(i)} aria-label="Remove month"><X size={10} /></button>
-          </div>
-        </div>
-      ))}
-      <button type="button" className={styles.monthAddBtn} onClick={addMonth}>
-        <Plus size={11} />
-        <span>Add month</span>
-      </button>
-    </div>
-  );
-}
 
 // ─── Inline relation picker ───────────────────────────────
 
@@ -319,98 +241,52 @@ function InlineRelationPicker({ ids, field, entities, schemas, onSave }: InlineR
   );
 }
 
-// ─── Fantasy date input ───────────────────────────────────
+// ─── Custom date input ────────────────────────────────────
 
-interface FantasyDateInputProps {
+interface CustomDateInputProps {
   fieldKey: string;
   value: unknown;
-  eraEntities: Entity[];
-  allEntities: Entity[];
-  onSave: (key: string, value: FantasyDate | undefined) => void;
+  onSave: (key: string, value: CustomDate | undefined) => void;
 }
 
-function FantasyDateInput({ fieldKey, value, eraEntities, allEntities, onSave }: FantasyDateInputProps) {
-  const parsed = parseFantasyDate(value);
-  const [eraId, setEraId] = useState(parsed?.era  ?? '');
+function CustomDateInput({ fieldKey, value, onSave }: CustomDateInputProps) {
+  const calendar = useVaultStore((s) => s.calendar);
+  const parsed = parseCustomDate(value);
   const [year,  setYear]  = useState(parsed?.year  ?? 1);
   const [month, setMonth] = useState(parsed?.month ?? 1);
   const [day,   setDay]   = useState(parsed?.day   ?? 1);
 
-  // Derive the calendar from the selected era's 'calendar' relation field.
-  // Falls back to any calendar entity if none linked.
-  const calendar = useMemo((): CalendarDefinition | undefined => {
-    const era = eraEntities.find((e) => e.id === eraId);
-    const calendarId = era
-      ? (Array.isArray(era.frontmatter.calendar)
-          ? (era.frontmatter.calendar as string[])[0]
-          : era.frontmatter.calendar as string | undefined)
-      : undefined;
-    const calEntity = calendarId
-      ? allEntities.find((e) => e.id === calendarId && e.type === 'Calendar')
-      : allEntities.find((e) => e.type === 'Calendar' && !e.archived);
-    return calEntity ? parseCalendarEntity(calEntity) : undefined;
-  }, [eraId, eraEntities, allEntities]);
+  const months = calendar?.months ?? [];
+  const maxDay = calendar ? getDaysInMonth(calendar, year, month) : 30;
 
-  const months   = calendar?.months ?? [];
-  const maxDay   = months[month - 1]?.days ?? 30;
-
-  function commit(overrides: Partial<{ eraId: string; year: number; month: number; day: number }> = {}) {
-    const e = overrides.eraId ?? eraId;
+  function commit(overrides: Partial<{ year: number; month: number; day: number }> = {}) {
     const y = overrides.year  ?? year;
     const m = overrides.month ?? month;
-    const cal = overrides.eraId !== undefined
-      ? (() => {
-          const era = eraEntities.find((en) => en.id === overrides.eraId);
-          const calId = era
-            ? (Array.isArray(era.frontmatter.calendar)
-                ? (era.frontmatter.calendar as string[])[0]
-                : era.frontmatter.calendar as string | undefined)
-            : undefined;
-          const calEntity = calId
-            ? allEntities.find((en) => en.id === calId && en.type === 'Calendar')
-            : allEntities.find((en) => en.type === 'Calendar' && !en.archived);
-          return calEntity ? parseCalendarEntity(calEntity) : calendar;
-        })()
-      : calendar;
-    const d = Math.min(overrides.day ?? day, cal?.months[(overrides.month ?? m) - 1]?.days ?? 30);
-    if (!e) { onSave(fieldKey, undefined); return; }
-    onSave(fieldKey, { era: e, year: y, month: m, day: d });
+    const maxD = calendar ? getDaysInMonth(calendar, y, m) : 30;
+    const d = Math.min(overrides.day ?? day, maxD);
+    onSave(fieldKey, { year: y, month: m, day: d });
   }
-
-  const sortedEras = [...eraEntities].sort(
-    (a, b) => Number(a.frontmatter.number ?? 0) - Number(b.frontmatter.number ?? 0),
-  );
 
   return (
     <div className={styles.fantasyDateWrap}>
-      {/* Row 1: Era */}
-      <div className={styles.fantasyDateRow}>
-        <select
-          className={styles.fantasyDateSelect}
-          value={eraId}
-          onChange={(e) => { setEraId(e.target.value); commit({ eraId: e.target.value }); }}
-        >
-          <option value="">— Select era —</option>
-          {sortedEras.map((era) => (
-            <option key={era.id} value={era.id}>{era.title}</option>
-          ))}
-        </select>
-      </div>
-      {/* Row 2: Year · Month · Day */}
       <div className={styles.fantasyDateRow}>
         <input
           type="number"
           className={styles.fantasyDateYear}
           value={year}
-          min={1}
           placeholder="Year"
-          onChange={(e) => { const v = Math.max(1, Number(e.target.value) || 1); setYear(v); commit({ year: v }); }}
+          onChange={(e) => { const v = Number(e.target.value) || 0; setYear(v); commit({ year: v }); }}
         />
         {months.length > 0 ? (
           <select
             className={styles.fantasyDateSelect}
             value={month}
-            onChange={(e) => { const v = Number(e.target.value); setMonth(v); setDay((d) => Math.min(d, months[v - 1]?.days ?? 30)); commit({ month: v }); }}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setMonth(v);
+              setDay((d) => Math.min(d, calendar ? getDaysInMonth(calendar, year, v) : 30));
+              commit({ month: v });
+            }}
           >
             {months.map((m, i) => (
               <option key={m.name} value={i + 1}>{m.name}</option>
@@ -423,7 +299,7 @@ function FantasyDateInput({ fieldKey, value, eraEntities, allEntities, onSave }:
             value={month}
             min={1}
             placeholder="Month"
-            title="Select an era linked to a calendar to get month names"
+            title="Configure a calendar in the Timeline view to get month names"
             onChange={(e) => { const v = Math.max(1, Number(e.target.value) || 1); setMonth(v); commit({ month: v }); }}
           />
         )}
@@ -441,6 +317,103 @@ function FantasyDateInput({ fieldKey, value, eraEntities, allEntities, onSave }:
   );
 }
 
+// ─── Custom date range input ──────────────────────────────
+
+interface CustomDateRangeInputProps {
+  fieldKey: string;
+  value: unknown;
+  onSave: (key: string, value: CustomDateRange | undefined) => void;
+}
+
+
+function CustomDateRangeInput({ fieldKey, value, onSave }: CustomDateRangeInputProps) {
+  const calendar = useVaultStore((s) => s.calendar);
+  const parsed = parseCustomDateRange(value);
+
+  const [sYear,  setSYear]  = useState(parsed?.start.year  ?? 1);
+  const [sMonth, setSMonth] = useState(parsed?.start.month ?? 1);
+  const [sDay,   setSDay]   = useState(parsed?.start.day   ?? 1);
+  const [eYear,  setEYear]  = useState(parsed?.end?.year   ?? 1);
+  const [eMonth, setEMonth] = useState(parsed?.end?.month  ?? 1);
+  const [eDay,   setEDay]   = useState(parsed?.end?.day    ?? 1);
+  const [ongoing, setOngoing] = useState(parsed?.ongoing ?? false);
+
+  const months = calendar?.months ?? [];
+
+  function commit(o: {
+    sYear?: number; sMonth?: number; sDay?: number;
+    eYear?: number; eMonth?: number; eDay?: number;
+    ongoing?: boolean;
+  } = {}) {
+    const sy = o.sYear ?? sYear, sm = o.sMonth ?? sMonth;
+    const maxSD = calendar ? getDaysInMonth(calendar, sy, sm) : 30;
+    const sd = Math.min(o.sDay ?? sDay, maxSD);
+    const isOngoing = o.ongoing ?? ongoing;
+    if (isOngoing) {
+      onSave(fieldKey, { start: { year: sy, month: sm, day: sd }, ongoing: true });
+    } else {
+      const ey = o.eYear ?? eYear, em = o.eMonth ?? eMonth;
+      const maxED = calendar ? getDaysInMonth(calendar, ey, em) : 30;
+      const ed = Math.min(o.eDay ?? eDay, maxED);
+      onSave(fieldKey, {
+        start: { year: sy, month: sm, day: sd },
+        end:   { year: ey, month: em, day: ed },
+        ongoing: false,
+      });
+    }
+  }
+
+  return (
+    <div className={styles.dateRangeWrap}>
+      <div className={styles.fantasyDateRow}>
+        <span className={styles.dateRangeSegLabel}>From</span>
+        <input type="number" className={styles.fantasyDateYear} value={sYear} placeholder="Year"
+          onChange={(e) => { const v = Number(e.target.value) || 0; setSYear(v); commit({ sYear: v }); }} />
+        {months.length > 0 ? (
+          <select className={styles.fantasyDateSelect} value={sMonth}
+            onChange={(e) => { const v = Number(e.target.value); setSMonth(v); commit({ sMonth: v }); }}>
+            {months.map((m, i) => <option key={m.name} value={i + 1}>{m.name}</option>)}
+          </select>
+        ) : (
+          <input type="number" className={styles.fantasyDateSelect} value={sMonth} min={1} placeholder="Mo"
+            onChange={(e) => { const v = Math.max(1, Number(e.target.value) || 1); setSMonth(v); commit({ sMonth: v }); }} />
+        )}
+        <input type="number" className={styles.fantasyDateDay} value={sDay} min={1}
+          max={calendar ? getDaysInMonth(calendar, sYear, sMonth) : 30} placeholder="Day"
+          onChange={(e) => { const v = Math.min(calendar ? getDaysInMonth(calendar, sYear, sMonth) : 30, Math.max(1, Number(e.target.value) || 1)); setSDay(v); commit({ sDay: v }); }} />
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={ongoing}
+        className={`${styles.ongoingToggle} ${ongoing ? styles.ongoingToggleOn : ''}`}
+        onClick={() => { setOngoing((o) => { commit({ ongoing: !o }); return !o; })}
+      >
+        {ongoing ? 'Ongoing / unknown end' : 'Has end date'}
+      </button>
+      {!ongoing && (
+        <div className={styles.fantasyDateRow}>
+          <span className={styles.dateRangeSegLabel}>To</span>
+          <input type="number" className={styles.fantasyDateYear} value={eYear} placeholder="Year"
+            onChange={(e) => { const v = Number(e.target.value) || 0; setEYear(v); commit({ eYear: v }); }} />
+          {months.length > 0 ? (
+            <select className={styles.fantasyDateSelect} value={eMonth}
+              onChange={(e) => { const v = Number(e.target.value); setEMonth(v); commit({ eMonth: v }); }}>
+              {months.map((m, i) => <option key={m.name} value={i + 1}>{m.name}</option>)}
+            </select>
+          ) : (
+            <input type="number" className={styles.fantasyDateSelect} value={eMonth} min={1} placeholder="Mo"
+              onChange={(e) => { const v = Math.max(1, Number(e.target.value) || 1); setEMonth(v); commit({ eMonth: v }); }} />
+          )}
+          <input type="number" className={styles.fantasyDateDay} value={eDay} min={1}
+            max={calendar ? getDaysInMonth(calendar, eYear, eMonth) : 30} placeholder="Day"
+            onChange={(e) => { const v = Math.min(calendar ? getDaysInMonth(calendar, eYear, eMonth) : 30, Math.max(1, Number(e.target.value) || 1)); setEDay(v); commit({ eDay: v }); }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Editable field input ─────────────────────────────────
 
 interface FieldInputProps {
@@ -449,10 +422,9 @@ interface FieldInputProps {
   onSave: (key: string, value: unknown) => void;
   entities?: ReturnType<typeof useVaultData>['entities'];
   schemas?: ReturnType<typeof useVaultData>['schemas'];
-  eraEntities?: Entity[];
 }
 
-function FieldInput({ field, value, onSave, entities = [], schemas = [], eraEntities = [] }: FieldInputProps) {
+function FieldInput({ field, value, onSave, entities = [], schemas = [] }: FieldInputProps) {
   const [localVal, setLocalVal] = useState<string>(
     value === undefined || value === null ? '' : String(value),
   );
@@ -535,23 +507,15 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [], eraEnti
     );
   }
 
-  if (field.type === 'months') {
-    return <MonthsInput fieldKey={field.key} value={value} onSave={onSave} />;
+  if (field.type === 'custom-date') {
+    return <CustomDateInput fieldKey={field.key} value={value} onSave={onSave} />;
   }
 
-  if (field.type === 'date' && field.dateKind === 'fantasy' && eraEntities.length > 0) {
-    return (
-      <FantasyDateInput
-        fieldKey={field.key}
-        value={value}
-        eraEntities={eraEntities}
-        allEntities={entities}
-        onSave={onSave}
-      />
-    );
+  if (field.type === 'custom-date-range') {
+    return <CustomDateRangeInput fieldKey={field.key} value={value} onSave={onSave} />;
   }
 
-  // text, date (no calendar), select → text input
+  // text, date, select → text input
   return (
     <input
       type="text"
@@ -569,20 +533,19 @@ interface CustomField {
   key: string;
   label: string;
   type: string;
-  dateKind?: string;
-  timelineVisible?: boolean;
 }
 
 const CUSTOM_PROP_TYPES = [
-  { value: 'text',     label: 'Text' },
-  { value: 'number',   label: 'Number' },
-  { value: 'boolean',  label: 'Toggle' },
-  { value: 'textarea', label: 'Long text' },
-  { value: 'date',     label: 'Date' },
-  { value: 'tags',     label: 'Tags' },
-  { value: 'select',   label: 'Select' },
-  { value: 'relation', label: 'Relation' },
-  { value: 'months',   label: 'Custom Calendar' },
+  { value: 'text',              label: 'Text' },
+  { value: 'number',            label: 'Number' },
+  { value: 'boolean',           label: 'Toggle' },
+  { value: 'textarea',          label: 'Long text' },
+  { value: 'date',              label: 'Date' },
+  { value: 'custom-date',       label: 'Custom Date' },
+  { value: 'custom-date-range', label: 'Custom Date Range' },
+  { value: 'tags',              label: 'Tags' },
+  { value: 'select',            label: 'Select' },
+  { value: 'relation',          label: 'Relation' },
 ];
 
 function toKey(label: string): string {
@@ -601,10 +564,6 @@ export default function PropertiesPanel() {
   );
   const { entities, schemas } = useVaultData();
 
-  const eraEntities = useMemo(
-    () => entities.filter((e) => e.type === 'Era' && !e.archived),
-    [entities],
-  );
   const patchEntityFrontmatter = useVaultStore((s) => s.patchEntityFrontmatter);
   const addRelation             = useVaultStore((s) => s.addRelation);
   const removeRelation          = useVaultStore((s) => s.removeRelation);
@@ -613,9 +572,7 @@ export default function PropertiesPanel() {
   const [addingProp, setAddingProp]               = useState(false);
   const [newPropLabel, setNewPropLabel]           = useState('');
   const [newPropType, setNewPropType]             = useState('text');
-  const [newPropTimeline, setNewPropTimeline]     = useState(false);
-  const [newPropFantasy, setNewPropFantasy]       = useState(false);
-  const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
+const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
   const [relationsOpen, setRelationsOpen] = useState(() => localStorage.getItem('pp-relations') !== 'false');
   const [statsOpen, setStatsOpen]         = useState(() => localStorage.getItem('pp-stats') !== 'false');
 
@@ -670,16 +627,10 @@ export default function PropertiesPanel() {
     const key = toKey(newPropLabel);
     if (!key || customFields.find((f) => f.key === key)) return;
     const newField: CustomField = { key, label: newPropLabel.trim(), type: newPropType };
-    if (newPropType === 'date') {
-      if (newPropTimeline) newField.timelineVisible = true;
-      if (newPropFantasy)  newField.dateKind = 'fantasy';
-    }
     const updated: CustomField[] = [...customFields, newField];
     void patchEntityFrontmatter(entity, { __customFields: updated });
     setNewPropLabel('');
     setNewPropType('text');
-    setNewPropTimeline(false);
-    setNewPropFantasy(false);
     setAddingProp(false);
   }
 
@@ -784,7 +735,7 @@ export default function PropertiesPanel() {
                             entities={entities}
                             schemas={schemas}
 
-                            eraEntities={eraEntities}
+
                           />
                         </div>
                         {isTag && tagList.length > 0 && (
@@ -827,7 +778,7 @@ export default function PropertiesPanel() {
                             entities={entities}
                             schemas={schemas}
 
-                            eraEntities={eraEntities}
+
                           />
                         </div>
                         <button
@@ -838,32 +789,6 @@ export default function PropertiesPanel() {
                         >
                           <X size={10} />
                         </button>
-                        {cf.type === 'date' && (
-                          <div className={styles.customDateOptions}>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={!!cf.timelineVisible}
-                              className={`${styles.customDateToggle} ${cf.timelineVisible ? styles.customDateToggleOn : ''}`}
-                              onClick={() => handleUpdateCustomPropMeta(cf.key, { timelineVisible: !cf.timelineVisible })}
-                            >
-                              <ChartLine size={10} />
-                              <span>Timeline</span>
-                            </button>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={cf.dateKind === 'fantasy'}
-                              className={`${styles.customDateToggle} ${cf.dateKind === 'fantasy' ? styles.customDateToggleOn : ''}`}
-                              onClick={() => handleUpdateCustomPropMeta(cf.key, {
-                                dateKind: cf.dateKind === 'fantasy' ? 'single' : 'fantasy',
-                              })}
-                            >
-                              <CalendarStar size={10} />
-                              <span>Fantasy</span>
-                            </button>
-                          </div>
-                        )}
                         {isTag && tagList.length > 0 && (
                           <div className={styles.tagPillsRow}>
                             {tagList.map((tag) => (
@@ -898,7 +823,7 @@ export default function PropertiesPanel() {
                       />
                       <Select.Root
                         value={newPropType}
-                        onValueChange={(v) => { setNewPropType(v); setNewPropTimeline(false); setNewPropFantasy(false); }}
+                        onValueChange={(v) => setNewPropType(v)}
                       >
                         <Select.Trigger asChild>
                           <button className={styles.addPropTypeBtn}>
@@ -918,30 +843,6 @@ export default function PropertiesPanel() {
                           </Select.Content>
                         </Select.Portal>
                       </Select.Root>
-                      {newPropType === 'date' && (
-                        <div className={styles.customDateOptions}>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={newPropTimeline}
-                            className={`${styles.customDateToggle} ${newPropTimeline ? styles.customDateToggleOn : ''}`}
-                            onClick={() => setNewPropTimeline((v) => !v)}
-                          >
-                            <ChartLine size={10} />
-                            <span>Timeline</span>
-                          </button>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={newPropFantasy}
-                            className={`${styles.customDateToggle} ${newPropFantasy ? styles.customDateToggleOn : ''}`}
-                            onClick={() => setNewPropFantasy((v) => !v)}
-                          >
-                            <CalendarStar size={10} />
-                            <span>Fantasy</span>
-                          </button>
-                        </div>
-                      )}
                       <div className={styles.addPropActions}>
                         <button
                           type="button"

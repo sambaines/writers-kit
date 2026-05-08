@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { Feather, FolderOpen, ArrowClockwise } from '@phosphor-icons/react';
-import * as Checkbox from '@radix-ui/react-checkbox';
-import { Check } from '@phosphor-icons/react';
 import { pickFolder } from '../../services/fs.service';
 import { useVaultStore } from '../../store/vault.store';
 import styles from './VaultOpener.module.css';
 
 export default function VaultOpener() {
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState<string | null>(null);
-  const [seedDefaults, setSeedDefaults] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
   const openVault = useVaultStore((s) => s.openVault);
 
   async function handleOpen() {
@@ -18,7 +15,7 @@ export default function VaultOpener() {
     if (!path) return;
     setLoading(true);
     try {
-      await openVault(path, seedDefaults);
+      await openVault(path);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -52,22 +49,6 @@ export default function VaultOpener() {
             </>
           )}
         </button>
-
-        {/* Seed defaults checkbox */}
-        <label className={styles.checkRow}>
-          <Checkbox.Root
-            className={styles.checkbox}
-            checked={seedDefaults}
-            onCheckedChange={(v: boolean | 'indeterminate') => setSeedDefaults(v === true)}
-          >
-            <Checkbox.Indicator>
-              <Check size={11} weight="bold" />
-            </Checkbox.Indicator>
-          </Checkbox.Root>
-          <span className={styles.checkLabel}>
-            Add default entity types to new vault
-          </span>
-        </label>
 
         {error && <p className={styles.error}>{error}</p>}
 

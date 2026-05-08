@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
-import type { Entity, EntityFrontmatter, RelationKind, SchemaDefinition } from '../types';
+import type { Entity, EntityFrontmatter, RelationKind, SchemaDefinition, VaultCalendar } from '../types';
 import {
   initVault,
   scanVault,
@@ -12,6 +12,10 @@ import {
   deleteEntityFile,
   updateEntityFrontmatter,
 } from '../services/vault.service';
+import {
+  loadCalendar as loadCalendarFile,
+  saveCalendar as saveCalendarFile,
+} from '../services/calendar.service';
 
 /* ─── Relation helpers ───────────────────────────────────── */
 
@@ -35,10 +39,12 @@ interface VaultState {
   vaultPath: string | null;
   schemas: SchemaDefinition[];
   entities: Entity[];
+  calendar: VaultCalendar | null;
   isIndexing: boolean;
   error: string | null;
 
-  openVault: (path: string, seedDefaults?: boolean) => Promise<void>;
+  openVault: (path: string) => Promise<void>;
+  saveCalendar: (calendar: VaultCalendar) => Promise<void>;
   closeVault: () => void;
   refreshVault: () => Promise<void>;
 
@@ -72,23 +78,34 @@ export const useVaultStore = create<VaultState>()(
       vaultPath: null,
       schemas: [],
       entities: [],
+      calendar: null,
       isIndexing: false,
       error: null,
 
-      openVault: async (path, seedDefaults = false) => {
-        set({ isIndexing: true, error: null, schemas: [], entities: [] });
+      openVault: async (path) => {
+        set({ isIndexing: true, error: null, schemas: [], entities: [], calendar: null });
         try {
-          await initVault(path, seedDefaults);
-          const { schemas, entities } = await scanVault(path);
-          set({ vaultPath: path, schemas, entities, isIndexing: false });
+          await initVault(path);
+          const [{ schemas, entities }, calendar] = await Promise.all([
+            scanVault(path),
+            loadCalendarFile(path),
+          ]);
+          set({ vaultPath: path, schemas, entities, calendar, isIndexing: false });
         } catch (err) {
           set({ error: String(err), isIndexing: false });
           throw err;
         }
       },
 
+      saveCalendar: async (calendar) => {
+        const { vaultPath } = get();
+        if (!vaultPath) throw new Error('No vault open');
+        await saveCalendarFile(vaultPath, calendar);
+        set({ calendar });
+      },
+
       closeVault: () =>
-        set({ vaultPath: null, schemas: [], entities: [], error: null }),
+        set({ vaultPath: null, schemas: [], entities: [], calendar: null, error: null }),
 
       refreshVault: async () => {
         const { vaultPath, openVault } = get();
@@ -256,6 +273,7 @@ export function useVaultData() {
       vaultPath:  s.vaultPath,
       schemas:    s.schemas,
       entities:   s.entities,
+      calendar:   s.calendar,
       isIndexing: s.isIndexing,
       error:      s.error,
     })),
