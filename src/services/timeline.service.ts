@@ -190,13 +190,14 @@ export function getEraBands(calendar: VaultCalendar, maxLinear: number): EraBand
   return sorted.map((era, idx) => {
     const nextStart = idx < sorted.length - 1 ? sorted[idx + 1].startYear : null;
     let endLinear: number;
-    if (era.endYear === 0) {
-      endLinear = maxLinear;
-    } else if (nextStart !== null && era.endYear < nextStart) {
-      // Fill the gap between this era and the next so the timeline has no dead space
+    if (nextStart !== null) {
+      // Always extend to the next era's start — no gaps between eras
       endLinear = nextStart;
-    } else {
+    } else if (era.endYear !== 0) {
       endLinear = era.endYear;
+    } else {
+      // Last era, ongoing — extend to canvas bottom
+      endLinear = maxLinear;
     }
     return { name: era.name, startLinear: era.startYear, endLinear, color: era.color };
   });

@@ -74,6 +74,14 @@ export default function TimelineView() {
       maxL = Math.max(...allLinear);
     }
 
+    // Extend range to include era boundaries so eras that start/end beyond event dates are visible
+    if (calendar && calendar.eras.length > 0) {
+      const eraStarts = calendar.eras.map((e) => e.startYear);
+      const eraEnds   = calendar.eras.filter((e) => e.endYear !== 0).map((e) => e.endYear);
+      minL = Math.min(minL, ...eraStarts);
+      maxL = Math.max(maxL, ...eraStarts, ...eraEnds);
+    }
+
     const ticks    = generateTicks(minL, maxL, pxPerYear, calendar ?? undefined);
     const eraBands = calendar ? getEraBands(calendar, maxL) : [];
     const naturalHeight = TOP_PAD * 2 + (maxL - minL) * pxPerYear;

@@ -387,7 +387,7 @@ function CustomDateRangeInput({ fieldKey, value, onSave }: CustomDateRangeInputP
         role="switch"
         aria-checked={ongoing}
         className={`${styles.ongoingToggle} ${ongoing ? styles.ongoingToggleOn : ''}`}
-        onClick={() => { setOngoing((o) => { commit({ ongoing: !o }); return !o; })}
+        onClick={() => setOngoing((o) => { commit({ ongoing: !o }); return !o; })}
       >
         {ongoing ? 'Ongoing / unknown end' : 'Has end date'}
       </button>
