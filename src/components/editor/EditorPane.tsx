@@ -37,6 +37,7 @@ import { Table as TableExtension } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import CoverImage from './CoverImage';
 import clsx from 'clsx';
 import styles from './EditorPane.module.css';
 
@@ -587,6 +588,9 @@ export default function EditorPane() {
             </div>
           ) : (
             <div className={styles.editorContent}>
+              {/* Cover image — hidden in raw view */}
+              {editorView !== 'raw' && <CoverImage entity={activeEntity} />}
+
               {/* Editable title */}
               <div className={styles.titleWrapper}>
                 <input

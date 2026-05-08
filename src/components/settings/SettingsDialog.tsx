@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Sun, Moon, GitBranch, Brain, Key, Eye, EyeSlash, Check } from '@phosphor-icons/react';
+import { X, Sun, Moon, GitBranch, Brain, Key, Eye, EyeSlash, Check, Image } from '@phosphor-icons/react';
 import { invoke } from '@tauri-apps/api/core';
 import { useSettingsStore } from '../../store/settings.store';
 import { useChatStore } from '../../store/chat.store';
@@ -172,6 +172,66 @@ function ClaudeSection() {
   );
 }
 
+// ─── Unsplash section ─────────────────────────────────────
+
+function UnsplashSection() {
+  const { unsplashKey, setUnsplashKey } = useSettingsStore();
+  const [input, setInput] = useState('');
+  const [show, setShow] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function handleSave() {
+    setUnsplashKey(input.trim());
+    setInput('');
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handleClear() {
+    setUnsplashKey('');
+    setSaved(false);
+  }
+
+  const keySource = unsplashKey
+    ? `Key set — ${unsplashKey.slice(0, 8)}${'•'.repeat(12)}`
+    : 'No key set';
+
+  return (
+    <Section title="Unsplash">
+      <Row label="Access Key" hint="Required to search Unsplash for cover images">
+        <div className={styles.keyStatus}>
+          <Image size={13} color={unsplashKey ? 'var(--color-success)' : 'var(--text-tertiary)'} />
+          <span className={styles.keyStatusText}>{keySource}</span>
+          {unsplashKey && (
+            <button className={styles.clearBtn} onClick={handleClear}>
+              Clear
+            </button>
+          )}
+        </div>
+        <div className={styles.inputRow}>
+          <div className={styles.passwordWrap}>
+            <input
+              className={styles.input}
+              type={show ? 'text' : 'password'}
+              placeholder={unsplashKey ? 'Enter new key to replace…' : 'Your Unsplash Access Key…'}
+              value={input}
+              onChange={(e) => { setInput(e.target.value); setSaved(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
+            />
+            <button className={styles.showBtn} onClick={() => setShow((s) => !s)} aria-label="Toggle visibility">
+              {show ? <EyeSlash size={13} /> : <Eye size={13} />}
+            </button>
+          </div>
+          <button className={styles.saveBtn} onClick={handleSave} disabled={!input.trim()}>
+            {saved ? <Check size={13} /> : <Key size={13} />}
+            {saved ? 'Saved' : 'Save'}
+          </button>
+        </div>
+      </Row>
+    </Section>
+  );
+}
+
 // ─── Dialog ───────────────────────────────────────────────
 
 interface Props {
@@ -200,6 +260,8 @@ export default function SettingsDialog({ open, onClose }: Props) {
             <GitSection />
             <div className={styles.divider} />
             <ClaudeSection />
+            <div className={styles.divider} />
+            <UnsplashSection />
           </div>
         </Dialog.Content>
       </Dialog.Portal>

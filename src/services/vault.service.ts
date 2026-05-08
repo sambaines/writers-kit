@@ -383,11 +383,13 @@ export async function updateEntityFrontmatter(
   updates: Partial<EntityFrontmatter>,
 ): Promise<Entity> {
   const now = new Date().toISOString();
-  const updatedFm: EntityFrontmatter = {
-    ...entity.frontmatter,
-    ...updates,
-    __modified: now,
-  };
+  const merged = { ...entity.frontmatter, ...updates, __modified: now };
+  // Filter out undefined values so callers can delete a frontmatter key by
+  // passing { key: undefined } — without this, the key lingers in memory even
+  // if js-yaml eventually skips it during serialisation.
+  const updatedFm = Object.fromEntries(
+    Object.entries(merged).filter(([, v]) => v !== undefined),
+  ) as EntityFrontmatter;
   const content = matter.stringify(entity.body, updatedFm as Record<string, unknown>);
   await writeTextFile(joinPath(vaultPath, entity.path), content);
   return {

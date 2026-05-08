@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use base64::{Engine as _, engine::general_purpose};
 use git2::{Repository, StatusOptions, IndexAddOption, RemoteCallbacks, PushOptions};
 use rusqlite::Connection;
 
@@ -334,6 +335,45 @@ fn fts_search(vault_path: String, query: String, limit: Option<usize>) -> Result
     search_vault_internal(&vault_path, &query, limit.unwrap_or(5))
 }
 
+// ─── Cover image ──────────────────────────────────────────
+
+#[tauri::command]
+fn read_image_base64(path: String) -> Result<String, String> {
+    let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+    let ext = Path::new(&path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("jpg")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "png"  => "image/png",
+        "gif"  => "image/gif",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        _      => "image/jpeg",
+    };
+    let b64 = general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{mime};base64,{b64}"))
+}
+
+#[tauri::command]
+fn copy_cover_file(src: String, vault_path: String, filename: String) -> Result<(), String> {
+    let covers_dir = Path::new(&vault_path).join(".writerkit").join("covers");
+    fs::create_dir_all(&covers_dir).map_err(|e| e.to_string())?;
+    let dest = covers_dir.join(&filename);
+    fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_cover_file(vault_path: String, filename: String) -> Result<(), String> {
+    let path = Path::new(&vault_path).join(".writerkit").join("covers").join(&filename);
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 // ─── API key ──────────────────────────────────────────────
 
 #[tauri::command]
@@ -495,6 +535,9 @@ pub fn run() {
             get_api_key,
             save_api_key,
             claude_chat,
+            read_image_base64,
+            copy_cover_file,
+            delete_cover_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
