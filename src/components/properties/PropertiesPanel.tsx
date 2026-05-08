@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Select from '@radix-ui/react-select';
 import {
   X, Hash, Calendar, Tag, TextT,
   ArrowUpRight, Plus, ArrowsOut,
-  FileText, Clock, PencilLine, Eye, CaretUpDown,
+  FileText, Clock, PencilLine, Eye, CaretUpDown, Shapes,
+  CaretDown, CaretRight,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -58,6 +59,90 @@ function FieldIcon({ type }: { type: string }) {
     case 'number':  return <Hash size={size} />;
     default:        return <TextT size={size} />;
   }
+}
+
+// ─── Tag input ────────────────────────────────────────────
+
+interface TagInputProps {
+  fieldKey: string;
+  value: unknown;
+  onSave: (key: string, value: string[]) => void;
+  entities: ReturnType<typeof useVaultData>['entities'];
+}
+
+function parseTags(value: unknown): string[] {
+  if (Array.isArray(value)) return (value as string[]).filter((t) => typeof t === 'string' && t);
+  if (typeof value === 'string' && value.trim())
+    return value.split(',').map((t) => t.trim()).filter(Boolean);
+  return [];
+}
+
+function TagInput({ fieldKey, value, onSave, entities }: TagInputProps) {
+  const tags = parseTags(value);
+  const [inputVal, setInputVal] = useState('');
+  const [focused, setFocused] = useState(false);
+
+  const allVaultTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of entities) {
+      const v = e.frontmatter[fieldKey];
+      parseTags(v).forEach((t) => set.add(t));
+    }
+    return [...set].sort();
+  }, [entities, fieldKey]);
+
+  const suggestions = focused && inputVal.trim()
+    ? allVaultTags.filter(
+        (t) => t.toLowerCase().includes(inputVal.toLowerCase()) && !tags.includes(t),
+      )
+    : [];
+
+  function addTag(raw: string) {
+    const tag = raw.trim().toLowerCase();
+    if (!tag || tags.includes(tag)) { setInputVal(''); return; }
+    onSave(fieldKey, [...tags, tag]);
+    setInputVal('');
+  }
+
+  return (
+    <div className={styles.tagWrap}>
+      {/* Input first */}
+      <div className={styles.tagInputRow}>
+        <input
+          className={styles.tagInput}
+          value={inputVal}
+          placeholder="Add tag…"
+          onChange={(e) => setInputVal(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault();
+              if (inputVal.trim()) addTag(inputVal);
+            }
+            if (e.key === 'Backspace' && !inputVal && tags.length > 0) {
+              onSave(fieldKey, tags.slice(0, -1));
+            }
+          }}
+        />
+      </div>
+      {/* Floating suggestions dropdown */}
+      {suggestions.length > 0 && (
+        <div className={styles.tagSuggestions}>
+          {suggestions.slice(0, 6).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={styles.tagSuggestion}
+              onMouseDown={(e) => { e.preventDefault(); addTag(tag); }}
+            >
+              <span className={styles.tagHash}>#</span>{tag}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Editable field input ─────────────────────────────────
@@ -130,6 +215,17 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [], sourceE
     );
   }
 
+  if (field.type === 'tags') {
+    return (
+      <TagInput
+        fieldKey={field.key}
+        value={value}
+        onSave={(key, val) => onSave(key, val)}
+        entities={entities}
+      />
+    );
+  }
+
   if (field.type === 'relation') {
     const ids: string[] = Array.isArray(value) ? (value as string[]) : [];
     const [relPickerOpen, setRelPickerOpen] = useState(false);
@@ -176,16 +272,37 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [], sourceE
     );
   }
 
-  // text, tags, date, select → text input
+  // text, date, select → text input
   return (
     <input
       type="text"
       className={styles.fieldInput}
       value={localVal}
-      placeholder={field.type === 'tags' ? 'tag1, tag2…' : '—'}
+      placeholder="—"
       onChange={(e) => schedule(e.target.value)}
     />
   );
+}
+
+// ─── Custom field types ───────────────────────────────────
+
+interface CustomField {
+  key: string;
+  label: string;
+  type: string;
+}
+
+const CUSTOM_PROP_TYPES = [
+  { value: 'text',     label: 'Text' },
+  { value: 'number',   label: 'Number' },
+  { value: 'boolean',  label: 'Toggle' },
+  { value: 'textarea', label: 'Long text' },
+  { value: 'date',     label: 'Date' },
+  { value: 'tags',     label: 'Tags' },
+];
+
+function toKey(label: string): string {
+  return label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 }
 
 // ─── Main panel ───────────────────────────────────────────
@@ -203,7 +320,17 @@ export default function PropertiesPanel() {
   const addRelation             = useVaultStore((s) => s.addRelation);
   const removeRelation          = useVaultStore((s) => s.removeRelation);
 
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen]         = useState(false);
+  const [addingProp, setAddingProp]         = useState(false);
+  const [newPropLabel, setNewPropLabel]     = useState('');
+  const [newPropType, setNewPropType]       = useState('text');
+  const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
+  const [relationsOpen, setRelationsOpen] = useState(() => localStorage.getItem('pp-relations') !== 'false');
+  const [statsOpen, setStatsOpen]         = useState(() => localStorage.getItem('pp-stats') !== 'false');
+
+  function toggleSection(key: string, setter: React.Dispatch<React.SetStateAction<boolean>>) {
+    setter((o) => { localStorage.setItem(key, String(!o)); return !o; });
+  }
 
   const entity = entities.find((e) => e.id === activeEntityId) ?? null;
   const schema = entity ? schemas.find((s) => s.name === entity.type) : null;
@@ -241,35 +368,38 @@ export default function PropertiesPanel() {
     void removeRelation(entity.id, targetId, kind);
   }
 
+  // ── Custom per-entity properties ──────────────────────────
+  const customFields: CustomField[] = useMemo(
+    () => (entity?.frontmatter.__customFields as CustomField[] | undefined) ?? [],
+    [entity?.frontmatter.__customFields], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  function handleAddCustomProp() {
+    if (!entity || !newPropLabel.trim()) return;
+    const key = toKey(newPropLabel);
+    if (!key || customFields.find((f) => f.key === key)) return;
+    const updated: CustomField[] = [...customFields, { key, label: newPropLabel.trim(), type: newPropType }];
+    void patchEntityFrontmatter(entity, { __customFields: updated });
+    setNewPropLabel('');
+    setNewPropType('text');
+    setAddingProp(false);
+  }
+
+  function handleRemoveCustomProp(key: string) {
+    if (!entity) return;
+    const updated = customFields.filter((f) => f.key !== key);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patch: Record<string, any> = { __customFields: updated };
+    patch[key] = undefined; // clear value too
+    void patchEntityFrontmatter(entity, patch);
+  }
+
   return (
     <div className={styles.panel}>
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerMeta}>
-          {entity ? (
-            <>
-              <button
-                className={styles.iconSwatch}
-                aria-label="Change icon"
-                style={{ background: schema ? `${schema.color}20` : undefined }}
-              >
-                <DynamicIcon
-                  name={entity.icon ?? schema?.icon ?? 'File'}
-                  size={15}
-                  weight="duotone"
-                  color={entity.color ?? schema?.color ?? 'var(--accent-text)'}
-                />
-              </button>
-              <button
-                className={styles.colorSwatch}
-                style={{ background: entity.color ?? schema?.color ?? 'var(--accent)' }}
-                aria-label="Change color"
-              />
-              <span className={styles.headerTitle}>{entity.title}</span>
-            </>
-          ) : (
-            <span className={styles.headerEmpty}>Properties</span>
-          )}
+          <span className={styles.headerTitle}>Metadata</span>
         </div>
         <button
           className={styles.closeBtn}
@@ -280,50 +410,64 @@ export default function PropertiesPanel() {
         </button>
       </div>
 
-      {entity && (
-        <div className={styles.typeBadge}>
-          <Select.Root
-            value={entity.type}
-            onValueChange={(newType) => void patchEntityFrontmatter(entity, { __type: newType })}
-          >
-            <Select.Trigger asChild>
-              <button className={styles.typeSelect}>
-                {schema && <DynamicIcon name={schema.icon} size={11} color={schema.color} />}
-                <span style={{ color: schema?.color ?? 'var(--text-tertiary)' }}>{entity.type}</span>
-                <CaretUpDown size={10} className={styles.typeSelectCaret} />
-              </button>
-            </Select.Trigger>
-            <Select.Portal>
-              <Select.Content className={styles.typeSelectContent} position="popper" sideOffset={4}>
-                <Select.Viewport>
-                  {schemas.map((s) => (
-                    <Select.Item key={s.id} value={s.name} className={styles.typeSelectItem}>
-                      <Select.ItemText>
-                        <span className={styles.typeSelectItemInner}>
-                          <DynamicIcon name={s.icon} size={12} color={s.color} />
-                          <span>{s.name}</span>
-                        </span>
-                      </Select.ItemText>
-                    </Select.Item>
-                  ))}
-                </Select.Viewport>
-              </Select.Content>
-            </Select.Portal>
-          </Select.Root>
-        </div>
-      )}
 
       <ScrollArea.Root className={styles.scrollRoot}>
         <ScrollArea.Viewport className={styles.scrollViewport}>
           {entity ? (
             <>
-              {/* Schema-defined fields */}
-              {userFields.length > 0 && (
-                <section className={styles.section}>
-                  <div className={styles.sectionHeader}>Properties</div>
-                  <div className={styles.fields}>
-                    {userFields.map((field) => (
-                      <div key={`${entity.id}-${field.key}`} className={styles.field}>
+              {/* Properties: type + schema-defined fields */}
+              <section className={styles.section}>
+                <button className={styles.sectionToggle} onClick={() => toggleSection('pp-props', setPropsOpen)}>
+                  {propsOpen ? <CaretDown size={10} /> : <CaretRight size={10} />}
+                  <span>Properties</span>
+                </button>
+                {propsOpen && <div className={styles.fields}>
+                  {/* Type row */}
+                  <div className={styles.field}>
+                    <div className={styles.fieldLabel}>
+                      <Shapes size={12} />
+                      <span>Type</span>
+                    </div>
+                    <div className={styles.fieldValueWrap}>
+                      <Select.Root
+                        value={entity.type}
+                        onValueChange={(newType) => void patchEntityFrontmatter(entity, { __type: newType })}
+                      >
+                        <Select.Trigger asChild>
+                          <button className={styles.typeSelectInline}>
+                            {schema && <DynamicIcon name={schema.icon} size={11} color={schema.color} />}
+                            <span style={{ color: schema?.color ?? 'var(--text-tertiary)' }}>{entity.type}</span>
+                            <CaretUpDown size={10} className={styles.typeSelectCaret} />
+                          </button>
+                        </Select.Trigger>
+                        <Select.Portal>
+                          <Select.Content className={styles.typeSelectContent} position="popper" sideOffset={4}>
+                            <Select.Viewport>
+                              {schemas.map((s) => (
+                                <Select.Item key={s.id} value={s.name} className={styles.typeSelectItem}>
+                                  <Select.ItemText>
+                                    <span className={styles.typeSelectItemInner}>
+                                      <DynamicIcon name={s.icon} size={12} color={s.color} />
+                                      <span>{s.name}</span>
+                                    </span>
+                                  </Select.ItemText>
+                                </Select.Item>
+                              ))}
+                            </Select.Viewport>
+                          </Select.Content>
+                        </Select.Portal>
+                      </Select.Root>
+                    </div>
+                  </div>
+                  {/* Schema fields */}
+                  {userFields.map((field) => {
+                    const isTag = field.type === 'tags';
+                    const tagList = isTag ? parseTags(field.value) : [];
+                    return (
+                      <div
+                        key={`${entity.id}-${field.key}`}
+                        className={isTag ? styles.fieldTag : styles.field}
+                      >
                         <div className={styles.fieldLabel}>
                           <FieldIcon type={field.type} />
                           <span>{field.label}</span>
@@ -338,17 +482,135 @@ export default function PropertiesPanel() {
                             sourceEntityId={entity?.id}
                           />
                         </div>
+                        {isTag && tagList.length > 0 && (
+                          <div className={styles.tagPillsRow}>
+                            {tagList.map((tag) => (
+                              <span key={tag} className={styles.tagPill}>
+                                <span className={styles.tagHash}>#</span>{tag}
+                                <button
+                                  type="button"
+                                  className={styles.tagPillRemove}
+                                  onMouseDown={(e) => { e.preventDefault(); handleFieldSave(field.key, tagList.filter((t) => t !== tag)); }}
+                                  aria-label={`Remove ${tag}`}
+                                ><X size={9} /></button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+                    );
+                  })}
+                  {/* Custom per-entity fields */}
+                  {customFields.map((cf) => {
+                    const isTag = cf.type === 'tags';
+                    const cfValue = entity.frontmatter[cf.key];
+                    const tagList = isTag ? parseTags(cfValue) : [];
+                    return (
+                      <div
+                        key={`${entity.id}-custom-${cf.key}`}
+                        className={isTag ? styles.fieldTag : styles.field}
+                      >
+                        <div className={styles.fieldLabel}>
+                          <FieldIcon type={cf.type} />
+                          <span>{cf.label}</span>
+                        </div>
+                        <div className={styles.fieldValueWrap}>
+                          <FieldInput
+                            field={cf}
+                            value={cfValue}
+                            onSave={handleFieldSave}
+                            entities={entities}
+                            schemas={schemas}
+                            sourceEntityId={entity?.id}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.removePropBtn}
+                          onClick={() => handleRemoveCustomProp(cf.key)}
+                          aria-label={`Remove ${cf.label}`}
+                        >
+                          <X size={10} />
+                        </button>
+                        {isTag && tagList.length > 0 && (
+                          <div className={styles.tagPillsRow}>
+                            {tagList.map((tag) => (
+                              <span key={tag} className={styles.tagPill}>
+                                <span className={styles.tagHash}>#</span>{tag}
+                                <button
+                                  type="button"
+                                  className={styles.tagPillRemove}
+                                  onMouseDown={(e) => { e.preventDefault(); handleFieldSave(cf.key, tagList.filter((t) => t !== tag)); }}
+                                  aria-label={`Remove ${tag}`}
+                                ><X size={9} /></button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {/* Add property form */}
+                  {addingProp ? (
+                    <div className={styles.addPropForm}>
+                      <input
+                        className={styles.addPropInput}
+                        placeholder="Property name"
+                        value={newPropLabel}
+                        autoFocus
+                        onChange={(e) => setNewPropLabel(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAddCustomProp();
+                          if (e.key === 'Escape') { setAddingProp(false); setNewPropLabel(''); }
+                        }}
+                      />
+                      <select
+                        className={styles.addPropSelect}
+                        value={newPropType}
+                        onChange={(e) => setNewPropType(e.target.value)}
+                      >
+                        {CUSTOM_PROP_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                      <div className={styles.addPropActions}>
+                        <button
+                          type="button"
+                          className={styles.addPropConfirm}
+                          onClick={handleAddCustomProp}
+                          disabled={!newPropLabel.trim()}
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.addPropCancel}
+                          onClick={() => { setAddingProp(false); setNewPropLabel(''); }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.addPropBtn}
+                      onClick={() => setAddingProp(true)}
+                    >
+                      <Plus size={11} />
+                      <span>Add property</span>
+                    </button>
+                  )}
+                </div>}
+              </section>
 
               {/* Relations */}
-              <div className={styles.divider} />
               <section className={styles.section}>
-                <div className={styles.sectionHeader}>Relations</div>
-                <div className={styles.relations}>
+                <button className={styles.sectionToggle} onClick={() => toggleSection('pp-relations', setRelationsOpen)}>
+                  {relationsOpen ? <CaretDown size={10} /> : <CaretRight size={10} />}
+                  <span>Relations</span>
+                </button>
+                {relationsOpen && <div className={styles.relations}>
                   {existingTargetIds.length === 0 && (
                     <span className={styles.emptyHint}>No relations yet</span>
                   )}
@@ -391,15 +653,16 @@ export default function PropertiesPanel() {
                     <Plus size={12} />
                     <span>Add relation</span>
                   </button>
-                </div>
+                </div>}
               </section>
-
-              <div className={styles.divider} />
 
               {/* Stats */}
               <section className={styles.section}>
-                <div className={styles.sectionHeader}>Stats</div>
-                <div className={styles.stats}>
+                <button className={styles.sectionToggle} onClick={() => toggleSection('pp-stats', setStatsOpen)}>
+                  {statsOpen ? <CaretDown size={10} /> : <CaretRight size={10} />}
+                  <span>Stats</span>
+                </button>
+                {statsOpen && <div className={styles.stats}>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><TextT size={12} /> Words</span>
                     <span className={styles.statValue}>{entity.wordCount.toLocaleString()}</span>
@@ -426,7 +689,7 @@ export default function PropertiesPanel() {
                     <span className={styles.statLabel}><Clock size={12} /> Modified</span>
                     <span className={styles.statValue}>{relativeTime(entity.modifiedAt)}</span>
                   </div>
-                </div>
+                </div>}
               </section>
 
               <EntityHistory entityPath={entity.path} />
