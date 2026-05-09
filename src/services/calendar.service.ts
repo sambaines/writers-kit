@@ -33,6 +33,7 @@ export async function saveCalendar(vaultPath: string, calendar: VaultCalendar): 
     eras: calendar.eras,
   };
   if (calendar.leapYear) fm.leapYear = calendar.leapYear;
+  if (calendar.negativeLabel) fm.negativeLabel = calendar.negativeLabel;
   const content = matter.stringify('', fm);
   await writeTextFile(fullPath, content);
 }
@@ -71,6 +72,7 @@ function parseCalendarFrontmatter(fm: Record<string, any>): VaultCalendar {
     months,
     leapYear,
     eras,
+    ...(typeof fm.negativeLabel === 'string' && fm.negativeLabel ? { negativeLabel: fm.negativeLabel } : {}),
   };
 }
 
@@ -114,7 +116,8 @@ export function getEraForYear(calendar: VaultCalendar, year: number): EraDef | n
 
 export function yearToLabel(calendar: VaultCalendar, year: number): string {
   const era = getEraForYear(calendar, year);
-  const yearStr = year < 0 ? `${Math.abs(year)} BR` : `Yr ${year}`;
+  const negLabel = calendar.negativeLabel ?? 'BR';
+  const yearStr = year < 0 ? `${Math.abs(year)} ${negLabel}` : `Yr ${year}`;
   return era ? `${yearStr} · ${era.name}` : yearStr;
 }
 

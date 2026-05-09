@@ -144,6 +144,7 @@ export interface VaultCalendar {
   months: CalendarMonthDef[];
   leapYear?: LeapYearRule;
   eras: EraDef[];
+  negativeLabel?: string; // suffix for negative years, e.g. "BR" → "60 BR". Defaults to "BR".
 }
 
 /** A date in a custom calendar: absolute year + month + day. */

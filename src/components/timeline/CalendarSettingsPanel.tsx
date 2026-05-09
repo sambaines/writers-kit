@@ -204,6 +204,21 @@ export default function CalendarSettingsPanel() {
           />
         </div>
 
+        {/* Negative year label */}
+        <div className={styles.row}>
+          <label className={styles.label}>Pre-zero year label</label>
+          <input
+            className={styles.inputShort}
+            value={local.negativeLabel ?? ''}
+            placeholder="BR"
+            maxLength={12}
+            onChange={(e) => setLocal((c) => ({
+              ...c,
+              negativeLabel: e.target.value || undefined,
+            }))}
+          />
+        </div>
+
         {/* Months section */}
         <div className={styles.section}>
           <button className={styles.sectionToggle} onClick={() => setMonthsOpen((o) => !o)}>

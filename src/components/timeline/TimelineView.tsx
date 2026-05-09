@@ -187,20 +187,22 @@ export default function TimelineView() {
           <button className={styles.zoomBtn} onClick={() => zoom(1.5)} aria-label="Zoom in">
             <MagnifyingGlassPlus size={14} />
           </button>
-          <input
-            className={styles.zoomInput}
-            type="text"
-            value={zoomStr}
-            onChange={(e) => setZoomStr(e.target.value)}
-            onFocus={() => { zoomInputFocused.current = true; }}
-            onBlur={() => { zoomInputFocused.current = false; applyZoomStr(); }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { applyZoomStr(); (e.target as HTMLInputElement).blur(); }
-              if (e.key === 'Escape') { setZoomStr(String(Math.round(pxPerYear / DEFAULT_PX * 100))); (e.target as HTMLInputElement).blur(); }
-            }}
-            aria-label="Zoom percent"
-          />
-          <span className={styles.zoomPct}>%</span>
+          <div className={styles.zoomInputWrapper}>
+            <input
+              className={styles.zoomInput}
+              type="text"
+              value={zoomStr}
+              onChange={(e) => setZoomStr(e.target.value)}
+              onFocus={() => { zoomInputFocused.current = true; }}
+              onBlur={() => { zoomInputFocused.current = false; applyZoomStr(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { applyZoomStr(); (e.target as HTMLInputElement).blur(); }
+                if (e.key === 'Escape') { setZoomStr(String(Math.round(pxPerYear / DEFAULT_PX * 100))); (e.target as HTMLInputElement).blur(); }
+              }}
+              aria-label="Zoom percent"
+            />
+            <span className={styles.zoomPct}>%</span>
+          </div>
           <button className={styles.zoomBtn} onClick={() => zoom(1 / 1.5)} aria-label="Zoom out">
             <MagnifyingGlassMinus size={14} />
           </button>
