@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -10,7 +10,7 @@ import {
   type TimelineSpan,
 } from '../../services/timeline.service';
 import DynamicIcon from '../ui/DynamicIcon';
-import { MagnifyingGlassPlus, MagnifyingGlassMinus, ChartLine } from '@phosphor-icons/react';
+import { MagnifyingGlassPlus, MagnifyingGlassMinus, ChartLine, ArrowsOut } from '@phosphor-icons/react';
 import styles from './TimelineView.module.css';
 
 const TOP_PAD     = 56;
@@ -34,6 +34,18 @@ export default function TimelineView() {
   const calendar = useVaultStore((s) => s.calendar);
 
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_PX);
+  const [zoomStr, setZoomStr] = useState('100');
+  const zoomInputFocused = useRef(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const prevPxRef = useRef(DEFAULT_PX);
+
+  // Sync zoom input display when pxPerYear changes externally (zoom buttons, fit)
+  if (pxPerYear !== prevPxRef.current) {
+    prevPxRef.current = pxPerYear;
+    if (!zoomInputFocused.current) {
+      setZoomStr(String(Math.round(pxPerYear / DEFAULT_PX * 100)));
+    }
+  }
 
   // Schemas with any timeline-visible date fields
   const timelineSchemas = useMemo(
@@ -46,13 +58,13 @@ export default function TimelineView() {
     [entities, schemas, calendar],
   );
 
-  const { visMin, totalHeight, ticks, eraBands, positionedItems, spanLaneMap } = useMemo(() => {
+  const { visMin, totalHeight, ticks, eraBands, positionedItems, spanLaneMap, dataRange } = useMemo(() => {
     const hasEras = calendar && calendar.eras.length > 0;
 
     if (rawItems.length === 0 && !hasEras) {
       return {
         visMin: 0, totalHeight: 400, ticks: [], eraBands: [],
-        positionedItems: [], spanLaneMap: new Map<string, number>(),
+        positionedItems: [], spanLaneMap: new Map<string, number>(), dataRange: 0,
       };
     }
 
@@ -115,11 +127,27 @@ export default function TimelineView() {
       : 0;
     const totalHeight = Math.max(naturalHeight, lastItemY + TOP_PAD);
 
-    return { visMin: minL, totalHeight, ticks, eraBands, positionedItems, spanLaneMap };
+    return { visMin: minL, totalHeight, ticks, eraBands, positionedItems, spanLaneMap, dataRange: maxL - minL };
   }, [rawItems, pxPerYear, calendar]);
 
   function zoom(factor: number) {
     setPxPerYear((prev) => Math.min(MAX_PX, Math.max(MIN_PX, prev * factor)));
+  }
+
+  function applyZoomStr() {
+    const n = parseInt(zoomStr, 10);
+    if (!isNaN(n) && n > 0) {
+      setPxPerYear(Math.min(MAX_PX, Math.max(MIN_PX, (n / 100) * DEFAULT_PX)));
+    } else {
+      setZoomStr(String(Math.round(pxPerYear / DEFAULT_PX * 100)));
+    }
+  }
+
+  function fitToViewport() {
+    if (!scrollAreaRef.current || dataRange === 0) return;
+    const availableH = scrollAreaRef.current.clientHeight - TOP_PAD * 2;
+    const fitted = Math.max(MIN_PX, Math.min(MAX_PX, availableH / dataRange));
+    setPxPerYear(fitted);
   }
 
   function handleItemClick(entityId: string) {
@@ -159,14 +187,31 @@ export default function TimelineView() {
           <button className={styles.zoomBtn} onClick={() => zoom(1.5)} aria-label="Zoom in">
             <MagnifyingGlassPlus size={14} />
           </button>
+          <input
+            className={styles.zoomInput}
+            type="text"
+            value={zoomStr}
+            onChange={(e) => setZoomStr(e.target.value)}
+            onFocus={() => { zoomInputFocused.current = true; }}
+            onBlur={() => { zoomInputFocused.current = false; applyZoomStr(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { applyZoomStr(); (e.target as HTMLInputElement).blur(); }
+              if (e.key === 'Escape') { setZoomStr(String(Math.round(pxPerYear / DEFAULT_PX * 100))); (e.target as HTMLInputElement).blur(); }
+            }}
+            aria-label="Zoom percent"
+          />
+          <span className={styles.zoomPct}>%</span>
           <button className={styles.zoomBtn} onClick={() => zoom(1 / 1.5)} aria-label="Zoom out">
             <MagnifyingGlassMinus size={14} />
+          </button>
+          <button className={styles.zoomBtn} onClick={fitToViewport} aria-label="Fit timeline to viewport">
+            <ArrowsOut size={14} />
           </button>
         </div>
       </div>
 
       {/* Scrollable canvas */}
-      <div className={styles.scrollArea}>
+      <div className={styles.scrollArea} ref={scrollAreaRef}>
         <div className={styles.canvas} style={{ height: totalHeight }}>
 
           {/* Era bands (background shading) */}
