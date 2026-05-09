@@ -6,6 +6,13 @@ import { buildTimelineItems } from '../../services/timeline.service';
 import DynamicIcon from '../ui/DynamicIcon';
 import styles from './TimelineFilterPanel.module.css';
 
+function pluralize(word: string): string {
+  if (!word) return word;
+  if (/(?:s|x|z|ch|sh)$/i.test(word)) return word + 'es';
+  if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + 'ies';
+  return word + 's';
+}
+
 export default function TimelineFilterPanel() {
   const { entities, schemas } = useVaultData();
   const calendar = useVaultStore((s) => s.calendar);
@@ -112,7 +119,7 @@ export default function TimelineFilterPanel() {
                     weight="duotone"
                   />
                 )}
-                <span className={styles.groupName}>{typeName}</span>
+                <span className={styles.groupName}>{pluralize(typeName)}</span>
                 <span className={styles.groupCount}>{members.length}</span>
                 <button
                   className={`${styles.checkbox} ${!typeHidden ? styles.checkboxChecked : ''}`}
@@ -134,12 +141,6 @@ export default function TimelineFilterPanel() {
                         key={entity.id}
                         className={`${styles.entityRow} ${typeHidden ? styles.entityRowDisabled : ''}`}
                       >
-                        <button
-                          className={`${styles.checkbox} ${!effectivelyHidden ? styles.checkboxChecked : ''}`}
-                          onClick={() => !typeHidden && toggleTimelineEntity(entity.id)}
-                          disabled={typeHidden}
-                          aria-label={effectivelyHidden ? `Show ${entity.title}` : `Hide ${entity.title}`}
-                        />
                         <span
                           className={`${styles.entityTitle} ${!hasDate ? styles.entityNoDate : ''}`}
                         >
@@ -150,6 +151,12 @@ export default function TimelineFilterPanel() {
                             <Warning size={10} weight="fill" />
                           </span>
                         )}
+                        <button
+                          className={`${styles.checkbox} ${!effectivelyHidden ? styles.checkboxChecked : ''}`}
+                          onClick={() => !typeHidden && toggleTimelineEntity(entity.id)}
+                          disabled={typeHidden}
+                          aria-label={effectivelyHidden ? `Show ${entity.title}` : `Hide ${entity.title}`}
+                        />
                       </div>
                     );
                   })}

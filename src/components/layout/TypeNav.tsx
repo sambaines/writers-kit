@@ -85,10 +85,10 @@ export default function TypeNav() {
                 <span className={styles.count}>{allCount}</span>
               </button>
               <button
-                className={clsx(styles.navItem, activeTypeId === '__archive' && styles.active)}
+                className={clsx(styles.navItem, activeTypeId === '__archive' && activeView !== 'timeline' && styles.active)}
                 onClick={() => handleNavClick('__archive')}
               >
-                <Archive size={15} weight={activeTypeId === '__archive' ? 'fill' : 'regular'} />
+                <Archive size={15} weight={activeTypeId === '__archive' && activeView !== 'timeline' ? 'fill' : 'regular'} />
                 <span>Archive</span>
                 {archiveCount > 0 && (
                   <span className={styles.count}>{archiveCount}</span>
@@ -115,7 +115,7 @@ export default function TypeNav() {
                   const count = entities.filter(
                     (e) => e.type === schema.name && !e.archived,
                   ).length;
-                  const isActive = activeTypeId === schema.id;
+                  const isActive = activeTypeId === schema.id && activeView !== 'timeline';
                   return (
                     <ContextMenu.Root key={schema.id}>
                       <ContextMenu.Trigger asChild>
