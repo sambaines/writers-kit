@@ -52,6 +52,7 @@ const BUILTIN_SORTS = [
   { key: 'created',  label: 'Created' },
   { key: 'modified', label: 'Modified' },
 ];
+const TYPE_SORT = { key: '__type', label: 'Type' };
 
 export default function EntityList() {
   const [creating, setCreating] = useState(false);
@@ -103,36 +104,57 @@ export default function EntityList() {
   }
 
   // Available sort options: builtins + schema custom fields (filtered types only)
+  const isGlobalView = activeTypeId === '__all' || activeTypeId === '__archive';
   const customSortFields = activeSchema
     ? activeSchema.fields
         .filter((f) => SORTABLE_FIELD_TYPES.has(f.type))
         .map((f) => ({ key: f.key, label: f.label }))
     : [];
-  const allSortOptions = [...BUILTIN_SORTS, ...customSortFields];
+  const allSortOptions = [
+    ...BUILTIN_SORTS,
+    ...(isGlobalView ? [TYPE_SORT] : []),
+    ...customSortFields,
+  ];
   const currentSortLabel = allSortOptions.find((o) => o.key === currentSort.field)?.label ?? 'Title';
 
-  // Visible properties (column picker) — only for schema types, not __all / __archive
-  const visiblePropKeys: string[] = activeSchema ? (visiblePropsPerType[activeTypeId] ?? []) : [];
-  const schemaFields = activeSchema ? activeSchema.fields : [];
+  // Visible properties (column picker) — available for all views
+  const visiblePropKeys: string[] = visiblePropsPerType[activeTypeId] ?? [];
 
-  // Collect unique per-entity custom fields across all entities of this type
+  // Source entities used to discover available fields (pre-sort)
   type FieldMeta = { key: string; label: string; type: string };
-  const entityCustomFields: FieldMeta[] = [];
+  const fieldSourceEntities =
+    activeTypeId === '__all'     ? entities.filter((e) => !e.archived) :
+    activeTypeId === '__archive' ? entities.filter((e) => e.archived)  :
+    entities.filter((e) => e.type === activeSchema?.name);
+
+  // Schema fields: single-type → activeSchema.fields; mixed views → union across all relevant schemas
+  const schemaFieldsMap = new Map<string, FieldMeta>();
   if (activeSchema) {
-    const seen = new Set(schemaFields.map((f) => f.key));
-    for (const entity of entities.filter((e) => e.type === activeSchema.name)) {
-      const customFields = entity.frontmatter.__customFields as FieldMeta[] | undefined;
-      if (!customFields) continue;
-      for (const f of customFields) {
-        if (!seen.has(f.key)) {
-          seen.add(f.key);
-          entityCustomFields.push(f);
-        }
+    for (const f of activeSchema.fields) schemaFieldsMap.set(f.key, f);
+  } else {
+    for (const entity of fieldSourceEntities) {
+      const s = schemas.find((sc) => sc.name === entity.type);
+      if (!s) continue;
+      for (const f of s.fields) {
+        if (!schemaFieldsMap.has(f.key)) schemaFieldsMap.set(f.key, f);
       }
     }
   }
+  const schemaFields = [...schemaFieldsMap.values()];
 
-  const allPropFields = schemaFields;
+  // Per-entity custom fields (keys not already covered by schema fields)
+  const entityCustomFields: FieldMeta[] = [];
+  const seenCustomKeys = new Set(schemaFieldsMap.keys());
+  for (const entity of fieldSourceEntities) {
+    const customFields = entity.frontmatter.__customFields as FieldMeta[] | undefined;
+    if (!customFields) continue;
+    for (const f of customFields) {
+      if (!seenCustomKeys.has(f.key)) {
+        seenCustomKeys.add(f.key);
+        entityCustomFields.push(f);
+      }
+    }
+  }
 
   function toggleProp(key: string) {
     setVisiblePropsPerType((prev) => {
@@ -148,6 +170,8 @@ export default function EntityList() {
 
     if (field === 'name') {
       cmp = a.title.localeCompare(b.title);
+    } else if (field === '__type') {
+      cmp = a.type.localeCompare(b.type);
     } else if (field === 'created') {
       cmp = String(a.frontmatter.__created ?? '').localeCompare(String(b.frontmatter.__created ?? ''));
     } else if (field === 'modified') {
@@ -214,8 +238,8 @@ export default function EntityList() {
       <div className={styles.header}>
         <DynamicIcon name={icon} size={14} color={color} weight="duotone" />
         <span className={styles.headerLabel}>{label}</span>
-        {/* Column picker — only for schema-typed views */}
-        {activeSchema && (
+        {/* Column picker */}
+        {(isGlobalView || schemaFields.length > 0 || entityCustomFields.length > 0) && (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button
@@ -228,13 +252,32 @@ export default function EntityList() {
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content className={styles.sortMenu} side="bottom" align="end" sideOffset={4}>
-                {allPropFields.length === 0 && entityCustomFields.length === 0 ? (
+                {!isGlobalView && schemaFields.length === 0 && entityCustomFields.length === 0 ? (
                   <div className={styles.sortItem} style={{ color: 'var(--text-disabled)', cursor: 'default' }}>
                     No properties defined
                   </div>
                 ) : (
                   <>
-                    {allPropFields.map((field) => {
+                    {isGlobalView && (() => {
+                      const checked = visiblePropKeys.includes('__type');
+                      return (
+                        <DropdownMenu.CheckboxItem
+                          key="__type"
+                          className={clsx(styles.sortItem, checked && styles.sortItemActive)}
+                          checked={checked}
+                          onCheckedChange={() => toggleProp('__type')}
+                        >
+                          <span className={styles.sortItemLabel}>Type</span>
+                          <DropdownMenu.ItemIndicator className={styles.propCheckIndicator}>
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                              <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </DropdownMenu.ItemIndicator>
+                        </DropdownMenu.CheckboxItem>
+                      );
+                    })()}
+                    {isGlobalView && schemaFields.length > 0 && <DropdownMenu.Separator className={styles.sortSep} />}
+                    {schemaFields.map((field) => {
                       const checked = visiblePropKeys.includes(field.key);
                       return (
                         <DropdownMenu.CheckboxItem
@@ -254,7 +297,7 @@ export default function EntityList() {
                     })}
                     {entityCustomFields.length > 0 && (
                       <>
-                        {allPropFields.length > 0 && <DropdownMenu.Separator className={styles.sortSep} />}
+                        {(schemaFields.length > 0 || isGlobalView) && <DropdownMenu.Separator className={styles.sortSep} />}
                         {entityCustomFields.map((field) => {
                           const checked = visiblePropKeys.includes(field.key);
                           return (
@@ -297,7 +340,11 @@ export default function EntityList() {
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content className={styles.sortMenu} side="bottom" align="end" sideOffset={4}>
-              {[...BUILTIN_SORTS, ...(customSortFields.length > 0 ? [null, ...customSortFields] : [])].map((opt, i) => {
+              {[
+                ...BUILTIN_SORTS,
+                ...(isGlobalView ? [TYPE_SORT] : []),
+                ...(customSortFields.length > 0 ? [null, ...customSortFields] : []),
+              ].map((opt, i) => {
                 if (opt === null) return <DropdownMenu.Separator key="sep" className={styles.sortSep} />;
                 const isActive = currentSort.field === opt.key;
                 return (
@@ -344,13 +391,16 @@ export default function EntityList() {
                 const eColor = entity.color ?? schema?.color ?? 'var(--text-tertiary)';
                 const isArchived = entity.archived;
 
-                // Compute visible prop values for this entity
-                // Check schema fields first, then fall back to per-entity __customFields
+                // Compute visible prop values — look up type from entity's own schema or __customFields
+                const entitySchema = schemas.find((s) => s.name === entity.type);
                 const entityCustom = entity.frontmatter.__customFields as FieldMeta[] | undefined;
                 const propRows = visiblePropKeys
                   .map((key) => {
+                    if (key === '__type') {
+                      return entity.type ? { label: 'Type', value: entity.type } : null;
+                    }
                     const field =
-                      activeSchema?.fields.find((f) => f.key === key) ??
+                      entitySchema?.fields.find((f) => f.key === key) ??
                       entityCustom?.find((f) => f.key === key);
                     if (!field) return null;
                     const value = formatFieldValue(entity.frontmatter[key], field.type, calendar);
