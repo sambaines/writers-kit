@@ -129,6 +129,13 @@
   margin: var(--space-1) 0;
 }
 
+.propCheckIndicator {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 .headerCount {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
@@ -214,6 +221,51 @@
   user-select: none;
   text-align: left;
   transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.entityItemExpanded {
+  height: auto;
+  min-height: 34px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.entityItemRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.entityProps {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 21px; /* aligns with title: icon(13px) + gap(8px) */
+  width: 100%;
+}
+
+.entityProp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px;
+  line-height: 1.4;
+}
+
+.entityPropLabel {
+  font-size: 10px;
+  color: var(--text-disabled);
+  flex-shrink: 0;
+}
+
+.entityPropValue {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  word-break: break-word;
 }
 
 .entityItem:hover {

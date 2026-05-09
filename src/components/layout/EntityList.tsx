@@ -1,12 +1,13 @@
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Plus, ArrowCounterClockwise, Archive, Trash, ArrowUp, ArrowDown, ArrowsDownUp } from '@phosphor-icons/react';
+import { Plus, ArrowCounterClockwise, Archive, Trash, ArrowUp, ArrowDown, ArrowsDownUp, Faders } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useUIStore } from '../../store/ui.store';
 import { useShallow } from 'zustand/react/shallow';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
-import type { Entity } from '../../types';
+import type { Entity, VaultCalendar } from '../../types';
+import { parseCustomDate, parseCustomDateRange, yearToLabel } from '../../services/calendar.service';
 import DynamicIcon from '../ui/DynamicIcon';
 import clsx from 'clsx';
 import styles from './EntityList.module.css';
@@ -15,8 +16,39 @@ type SortDir = 'asc' | 'desc';
 interface SortState { field: string; dir: SortDir; }
 
 const SORTABLE_FIELD_TYPES = new Set(['text', 'number', 'date', 'custom-date']);
+
+function formatFieldValue(value: unknown, fieldType: string, calendar: VaultCalendar | null): string | null {
+  if (value == null || value === '') return null;
+  switch (fieldType) {
+    case 'text':
+    case 'number':
+      return String(value);
+    case 'boolean':
+      return value ? 'Yes' : 'No';
+    case 'date':
+      return String(value);
+    case 'custom-date': {
+      const cd = parseCustomDate(value);
+      if (!cd) return null;
+      return calendar ? yearToLabel(calendar, cd.year) : `Yr ${cd.year}`;
+    }
+    case 'custom-date-range': {
+      const range = parseCustomDateRange(value);
+      if (!range) return null;
+      const startLabel = calendar ? yearToLabel(calendar, range.start.year) : `Yr ${range.start.year}`;
+      if (range.ongoing) return `${startLabel} →`;
+      if (!range.end) return startLabel;
+      const endLabel = calendar ? yearToLabel(calendar, range.end.year) : `Yr ${range.end.year}`;
+      return `${startLabel} – ${endLabel}`;
+    }
+    default:
+      if (Array.isArray(value)) return (value as unknown[]).map(String).filter(Boolean).join(', ');
+      if (typeof value === 'object') return null;
+      return String(value);
+  }
+}
 const BUILTIN_SORTS = [
-  { key: 'name',     label: 'Name' },
+  { key: 'name',     label: 'Title' },
   { key: 'created',  label: 'Created' },
   { key: 'modified', label: 'Modified' },
 ];
@@ -24,6 +56,7 @@ const BUILTIN_SORTS = [
 export default function EntityList() {
   const [creating, setCreating] = useState(false);
   const [sortPerType, setSortPerType] = useState<Record<string, SortState>>({});
+  const [visiblePropsPerType, setVisiblePropsPerType] = useState<Record<string, string[]>>({});
 
   const { activeTypeId, activeEntityId, setActiveEntityId } = useUIStore(
     useShallow((s) => ({
@@ -34,6 +67,7 @@ export default function EntityList() {
   );
 
   const { schemas, entities } = useVaultData();
+  const calendar      = useVaultStore((s) => s.calendar);
   const createEntity  = useVaultStore((s) => s.createEntity);
   const archiveEntity = useVaultStore((s) => s.archiveEntity);
   const restoreEntity = useVaultStore((s) => s.restoreEntity);
@@ -75,7 +109,38 @@ export default function EntityList() {
         .map((f) => ({ key: f.key, label: f.label }))
     : [];
   const allSortOptions = [...BUILTIN_SORTS, ...customSortFields];
-  const currentSortLabel = allSortOptions.find((o) => o.key === currentSort.field)?.label ?? 'Name';
+  const currentSortLabel = allSortOptions.find((o) => o.key === currentSort.field)?.label ?? 'Title';
+
+  // Visible properties (column picker) — only for schema types, not __all / __archive
+  const visiblePropKeys: string[] = activeSchema ? (visiblePropsPerType[activeTypeId] ?? []) : [];
+  const schemaFields = activeSchema ? activeSchema.fields : [];
+
+  // Collect unique per-entity custom fields across all entities of this type
+  type FieldMeta = { key: string; label: string; type: string };
+  const entityCustomFields: FieldMeta[] = [];
+  if (activeSchema) {
+    const seen = new Set(schemaFields.map((f) => f.key));
+    for (const entity of entities.filter((e) => e.type === activeSchema.name)) {
+      const customFields = entity.frontmatter.__customFields as FieldMeta[] | undefined;
+      if (!customFields) continue;
+      for (const f of customFields) {
+        if (!seen.has(f.key)) {
+          seen.add(f.key);
+          entityCustomFields.push(f);
+        }
+      }
+    }
+  }
+
+  const allPropFields = schemaFields;
+
+  function toggleProp(key: string) {
+    setVisiblePropsPerType((prev) => {
+      const cur = prev[activeTypeId] ?? [];
+      const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+      return { ...prev, [activeTypeId]: next };
+    });
+  }
 
   function compareEntities(a: Entity, b: Entity): number {
     const { field, dir } = currentSort;
@@ -149,6 +214,73 @@ export default function EntityList() {
       <div className={styles.header}>
         <DynamicIcon name={icon} size={14} color={color} weight="duotone" />
         <span className={styles.headerLabel}>{label}</span>
+        {/* Column picker — only for schema-typed views */}
+        {activeSchema && (
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                className={clsx(styles.sortBtn, visiblePropKeys.length > 0 && styles.sortBtnActive)}
+                aria-label="Toggle visible properties"
+                title="Show/hide properties"
+              >
+                <Faders size={12} />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className={styles.sortMenu} side="bottom" align="end" sideOffset={4}>
+                {allPropFields.length === 0 && entityCustomFields.length === 0 ? (
+                  <div className={styles.sortItem} style={{ color: 'var(--text-disabled)', cursor: 'default' }}>
+                    No properties defined
+                  </div>
+                ) : (
+                  <>
+                    {allPropFields.map((field) => {
+                      const checked = visiblePropKeys.includes(field.key);
+                      return (
+                        <DropdownMenu.CheckboxItem
+                          key={field.key}
+                          className={clsx(styles.sortItem, checked && styles.sortItemActive)}
+                          checked={checked}
+                          onCheckedChange={() => toggleProp(field.key)}
+                        >
+                          <span className={styles.sortItemLabel}>{field.label}</span>
+                          <DropdownMenu.ItemIndicator className={styles.propCheckIndicator}>
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                              <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </DropdownMenu.ItemIndicator>
+                        </DropdownMenu.CheckboxItem>
+                      );
+                    })}
+                    {entityCustomFields.length > 0 && (
+                      <>
+                        {allPropFields.length > 0 && <DropdownMenu.Separator className={styles.sortSep} />}
+                        {entityCustomFields.map((field) => {
+                          const checked = visiblePropKeys.includes(field.key);
+                          return (
+                            <DropdownMenu.CheckboxItem
+                              key={field.key}
+                              className={clsx(styles.sortItem, checked && styles.sortItemActive)}
+                              checked={checked}
+                              onCheckedChange={() => toggleProp(field.key)}
+                            >
+                              <span className={styles.sortItemLabel}>{field.label}</span>
+                              <DropdownMenu.ItemIndicator className={styles.propCheckIndicator}>
+                                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                  <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </DropdownMenu.ItemIndicator>
+                            </DropdownMenu.CheckboxItem>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                )}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        )}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
@@ -212,25 +344,53 @@ export default function EntityList() {
                 const eColor = entity.color ?? schema?.color ?? 'var(--text-tertiary)';
                 const isArchived = entity.archived;
 
+                // Compute visible prop values for this entity
+                // Check schema fields first, then fall back to per-entity __customFields
+                const entityCustom = entity.frontmatter.__customFields as FieldMeta[] | undefined;
+                const propRows = visiblePropKeys
+                  .map((key) => {
+                    const field =
+                      activeSchema?.fields.find((f) => f.key === key) ??
+                      entityCustom?.find((f) => f.key === key);
+                    if (!field) return null;
+                    const value = formatFieldValue(entity.frontmatter[key], field.type, calendar);
+                    if (value == null) return null;
+                    return { label: field.label, value };
+                  })
+                  .filter((r): r is { label: string; value: string } => r !== null);
+
                 return (
                   <ContextMenu.Root key={entity.id}>
                     <ContextMenu.Trigger asChild>
                       <button
                         className={clsx(
                           styles.entityItem,
+                          propRows.length > 0 && styles.entityItemExpanded,
                           activeEntityId === entity.id && styles.active,
                         )}
                         onClick={() => setActiveEntityId(entity.id)}
                       >
-                        <span className={styles.entityIcon}>
-                          <DynamicIcon
-                            name={eIcon}
-                            size={13}
-                            color={activeEntityId === entity.id ? eColor : undefined}
-                            weight={activeEntityId === entity.id ? 'fill' : 'regular'}
-                          />
-                        </span>
-                        <span className={styles.entityTitle}>{entity.title}</span>
+                        <div className={styles.entityItemRow}>
+                          <span className={styles.entityIcon}>
+                            <DynamicIcon
+                              name={eIcon}
+                              size={13}
+                              color={activeEntityId === entity.id ? eColor : undefined}
+                              weight={activeEntityId === entity.id ? 'fill' : 'regular'}
+                            />
+                          </span>
+                          <span className={styles.entityTitle}>{entity.title}</span>
+                        </div>
+                        {propRows.length > 0 && (
+                          <div className={styles.entityProps}>
+                            {propRows.map(({ label, value }) => (
+                              <div key={label} className={styles.entityProp}>
+                                <span className={styles.entityPropLabel}>{label}</span>
+                                <span className={styles.entityPropValue}>{value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </button>
                     </ContextMenu.Trigger>
                     <ContextMenu.Portal>
