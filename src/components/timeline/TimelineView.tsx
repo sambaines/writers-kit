@@ -31,7 +31,14 @@ export default function TimelineView() {
     })),
   );
   const { entities, schemas } = useVaultData();
-  const calendar = useVaultStore((s) => s.calendar);
+  const calendar      = useVaultStore((s) => s.calendar);
+  const hiddenTypes   = useVaultStore((s) => s.hiddenTypes);
+  const hiddenEntities = useVaultStore((s) => s.hiddenEntities);
+
+  const visibleEntities = useMemo(
+    () => entities.filter((e) => !hiddenTypes.includes(e.type) && !hiddenEntities.includes(e.id)),
+    [entities, hiddenTypes, hiddenEntities],
+  );
 
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_PX);
   const [zoomStr, setZoomStr] = useState('100');
@@ -54,8 +61,8 @@ export default function TimelineView() {
   );
 
   const rawItems = useMemo(
-    () => buildTimelineItems(entities, schemas, calendar ?? undefined),
-    [entities, schemas, calendar],
+    () => buildTimelineItems(visibleEntities, schemas, calendar ?? undefined),
+    [visibleEntities, schemas, calendar],
   );
 
   const { visMin, totalHeight, ticks, eraBands, positionedItems, spanLaneMap, dataRange } = useMemo(() => {

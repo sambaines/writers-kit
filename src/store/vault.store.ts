@@ -16,6 +16,10 @@ import {
   loadCalendar as loadCalendarFile,
   saveCalendar as saveCalendarFile,
 } from '../services/calendar.service';
+import {
+  loadTimelineFilters,
+  saveTimelineFilters,
+} from '../services/timeline-filters.service';
 
 /* ─── Relation helpers ───────────────────────────────────── */
 
@@ -43,10 +47,18 @@ interface VaultState {
   isIndexing: boolean;
   error: string | null;
 
+  // Timeline filters
+  hiddenTypes: string[];
+  hiddenEntities: string[];
+
   openVault: (path: string) => Promise<void>;
   saveCalendar: (calendar: VaultCalendar) => Promise<void>;
   closeVault: () => void;
   refreshVault: () => Promise<void>;
+
+  toggleTimelineType: (typeName: string) => Promise<void>;
+  toggleTimelineEntity: (entityId: string) => Promise<void>;
+  resetTimelineFilters: () => Promise<void>;
 
   // Entity mutations
   addEntity: (entity: Entity) => void;
@@ -81,16 +93,19 @@ export const useVaultStore = create<VaultState>()(
       calendar: null,
       isIndexing: false,
       error: null,
+      hiddenTypes: [],
+      hiddenEntities: [],
 
       openVault: async (path) => {
-        set({ isIndexing: true, error: null, schemas: [], entities: [], calendar: null });
+        set({ isIndexing: true, error: null, schemas: [], entities: [], calendar: null, hiddenTypes: [], hiddenEntities: [] });
         try {
           await initVault(path);
-          const [{ schemas, entities }, calendar] = await Promise.all([
+          const [{ schemas, entities }, calendar, filters] = await Promise.all([
             scanVault(path),
             loadCalendarFile(path),
+            loadTimelineFilters(path),
           ]);
-          set({ vaultPath: path, schemas, entities, calendar, isIndexing: false });
+          set({ vaultPath: path, schemas, entities, calendar, isIndexing: false, hiddenTypes: filters.hiddenTypes, hiddenEntities: filters.hiddenEntities });
         } catch (err) {
           set({ error: String(err), isIndexing: false });
           throw err;
@@ -105,7 +120,34 @@ export const useVaultStore = create<VaultState>()(
       },
 
       closeVault: () =>
-        set({ vaultPath: null, schemas: [], entities: [], calendar: null, error: null }),
+        set({ vaultPath: null, schemas: [], entities: [], calendar: null, error: null, hiddenTypes: [], hiddenEntities: [] }),
+
+      toggleTimelineType: async (typeName) => {
+        const { vaultPath, hiddenTypes, hiddenEntities } = get();
+        if (!vaultPath) return;
+        const next = hiddenTypes.includes(typeName)
+          ? hiddenTypes.filter((t) => t !== typeName)
+          : [...hiddenTypes, typeName];
+        set({ hiddenTypes: next });
+        await saveTimelineFilters(vaultPath, { hiddenTypes: next, hiddenEntities });
+      },
+
+      toggleTimelineEntity: async (entityId) => {
+        const { vaultPath, hiddenTypes, hiddenEntities } = get();
+        if (!vaultPath) return;
+        const next = hiddenEntities.includes(entityId)
+          ? hiddenEntities.filter((id) => id !== entityId)
+          : [...hiddenEntities, entityId];
+        set({ hiddenEntities: next });
+        await saveTimelineFilters(vaultPath, { hiddenTypes, hiddenEntities: next });
+      },
+
+      resetTimelineFilters: async () => {
+        const { vaultPath } = get();
+        if (!vaultPath) return;
+        set({ hiddenTypes: [], hiddenEntities: [] });
+        await saveTimelineFilters(vaultPath, { hiddenTypes: [], hiddenEntities: [] });
+      },
 
       refreshVault: async () => {
         const { vaultPath, openVault } = get();

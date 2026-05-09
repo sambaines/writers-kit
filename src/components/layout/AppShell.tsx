@@ -5,6 +5,7 @@ import EntityList from './EntityList';
 import EditorPane from '../editor/EditorPane';
 import PropertiesPanel from '../properties/PropertiesPanel';
 import CalendarSettingsPanel from '../timeline/CalendarSettingsPanel';
+import TimelineFilterPanel from '../timeline/TimelineFilterPanel';
 import ChatPanel from '../chat/ChatPanel';
 import TimelineView from '../timeline/TimelineView';
 import StatusBar from './StatusBar';
@@ -30,7 +31,10 @@ export default function AppShell() {
       <div className={styles.main}>
         <TypeNav />
         {activeView === 'timeline' ? (
-          <TimelineView />
+          <>
+            <TimelineFilterPanel />
+            <TimelineView />
+          </>
         ) : (
           <>
             <EntityList />
