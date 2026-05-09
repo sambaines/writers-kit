@@ -23,6 +23,110 @@
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
+  flex: 1;
+}
+
+/* ─── Sort button ────────────────────────────────────────── */
+.sortBtn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-disabled);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+
+.sortBtn:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+  background: var(--bg-hover);
+}
+
+.sortBtnActive {
+  color: var(--accent);
+}
+
+.sortBtnLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+/* ─── Sort dropdown ──────────────────────────────────────── */
+.sortMenu {
+  min-width: 140px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1) 0;
+  z-index: var(--z-modal);
+  animation: fadeIn 0.08s ease;
+}
+
+.sortItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: 28px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: background 0.08s, color 0.08s;
+}
+
+.sortItem:hover,
+.sortItem[data-highlighted] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sortItemActive {
+  color: var(--text-primary);
+}
+
+.sortItemLabel {
+  flex: 1;
+}
+
+.sortDirBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-disabled);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.08s, background 0.08s, border-color 0.08s;
+}
+
+.sortDirBtn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-active);
+  border-color: var(--border-subtle);
+}
+
+.sortDirBtnActive {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+}
+
+.sortSep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--space-1) 0;
 }
 
 .headerCount {
