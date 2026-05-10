@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -7,8 +7,12 @@ import {
   generateTicks,
   getEraBands,
   yearToY,
+  MONTH_TICK_THRESHOLD,
+  DAY_TICK_THRESHOLD,
+  type TimelineItem,
   type TimelineSpan,
 } from '../../services/timeline.service';
+import { formatDetailedDateLabel } from '../../services/calendar.service';
 import DynamicIcon from '../ui/DynamicIcon';
 import { MagnifyingGlassPlus, MagnifyingGlassMinus, ChartLine, ArrowsOut } from '@phosphor-icons/react';
 import styles from './TimelineView.module.css';
@@ -17,7 +21,7 @@ const TOP_PAD     = 56;
 const MIN_SPACING = 22;
 const DEFAULT_PX  = 60;
 const MIN_PX      = 6;
-const MAX_PX      = 600;
+const MAX_PX      = 8000;
 const AXIS_X      = 88;
 const SPAN_BAR_W  = 4;
 const SPAN_LANE_W = 12;
@@ -41,10 +45,18 @@ export default function TimelineView() {
   );
 
   const [pxPerYear, setPxPerYear] = useState(DEFAULT_PX);
-  const [zoomStr, setZoomStr] = useState('100');
+  const [zoomStr, setZoomStr]     = useState('100');
+  const [scrollTop, setScrollTop] = useState(0);
   const zoomInputFocused = useRef(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const prevPxRef = useRef(DEFAULT_PX);
+  const scrollAreaRef    = useRef<HTMLDivElement>(null);
+  const prevPxRef        = useRef(DEFAULT_PX);
+  const pendingScrollRef = useRef<number | null>(null);
+  const viewportHRef     = useRef(800); // updated on scroll/resize
+
+  // Navigator state
+  const [goToYearStr, setGoToYearStr] = useState('');
+  const [fromYearStr, setFromYearStr] = useState('');
+  const [toYearStr, setToYearStr]     = useState('');
 
   // Sync zoom input display when pxPerYear changes externally (zoom buttons, fit)
   if (pxPerYear !== prevPxRef.current) {
@@ -53,6 +65,14 @@ export default function TimelineView() {
       setZoomStr(String(Math.round(pxPerYear / DEFAULT_PX * 100)));
     }
   }
+
+  // Apply scroll correction synchronously after DOM updates, before the browser paints
+  useLayoutEffect(() => {
+    if (pendingScrollRef.current !== null && scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = Math.max(0, pendingScrollRef.current);
+      pendingScrollRef.current = null;
+    }
+  }, [pxPerYear]);
 
   // Schemas with any timeline-visible date fields
   const timelineSchemas = useMemo(
@@ -65,26 +85,26 @@ export default function TimelineView() {
     [visibleEntities, schemas, calendar],
   );
 
-  const { visMin, totalHeight, ticks, eraBands, positionedItems, spanLaneMap, dataRange } = useMemo(() => {
+  // ── Data memo: positions, heights, era bands ─────────────
+  // Does NOT include ticks — those are viewport-dependent and live in their own memo.
+  const { visMin, visMax, totalHeight, eraBands, positionedItems, spanLaneMap, dataRange } = useMemo(() => {
     const hasEras = calendar && calendar.eras.length > 0;
 
     if (rawItems.length === 0 && !hasEras) {
       return {
-        visMin: 0, totalHeight: 400, ticks: [], eraBands: [],
+        visMin: 0, visMax: 0, totalHeight: 400, eraBands: [],
         positionedItems: [], spanLaneMap: new Map<string, number>(), dataRange: 0,
       };
     }
 
     let minL: number, maxL: number;
     if (rawItems.length === 0) {
-      // No events — derive visible range from era boundaries
       minL = Math.min(...calendar!.eras.map((e) => e.startYear));
       const closedEnds = calendar!.eras.filter((e) => e.endYear !== 0).map((e) => e.endYear);
       maxL = closedEnds.length > 0 ? Math.max(...closedEnds) : minL + 1000;
     } else {
       const allLinear = rawItems.flatMap((item) => {
         if (item.kind === 'span') {
-          // Exclude endLinear for ongoing spans — they extend to canvas bottom, not a real date
           return item.ongoing ? [item.startLinear] : [item.startLinear, item.endLinear];
         }
         return [item.linear];
@@ -93,7 +113,6 @@ export default function TimelineView() {
       maxL = Math.max(...allLinear);
     }
 
-    // Extend range to include era boundaries so eras that start/end beyond event dates are visible
     if (calendar && calendar.eras.length > 0) {
       const eraStarts = calendar.eras.map((e) => e.startYear);
       const eraEnds   = calendar.eras.filter((e) => e.endYear !== 0).map((e) => e.endYear);
@@ -101,11 +120,9 @@ export default function TimelineView() {
       maxL = Math.max(maxL, ...eraStarts, ...eraEnds);
     }
 
-    const ticks    = generateTicks(minL, maxL, pxPerYear, calendar ?? undefined);
-    const eraBands = calendar ? getEraBands(calendar, maxL) : [];
+    const eraBands      = calendar ? getEraBands(calendar, maxL) : [];
     const naturalHeight = TOP_PAD * 2 + (maxL - minL) * pxPerYear;
 
-    // Assign overlapping spans to horizontal lanes
     const spanItems = rawItems.filter((i): i is TimelineSpan => i.kind === 'span');
     const spanLaneMap = new Map<string, number>();
     const laneEndLinears: number[] = [];
@@ -116,7 +133,6 @@ export default function TimelineView() {
       spanLaneMap.set(span.entityId, lane);
     }
 
-    // Enforce minimum vertical spacing for point labels
     let lastPointY = -Infinity;
     const positionedItems = rawItems.map((item) => {
       if (item.kind === 'span') {
@@ -129,22 +145,48 @@ export default function TimelineView() {
       return { item, y };
     });
 
-    const lastItemY = positionedItems.length > 0
-      ? positionedItems[positionedItems.length - 1].y + 32
-      : 0;
+    const lastItemY   = positionedItems.length > 0 ? positionedItems[positionedItems.length - 1].y + 32 : 0;
     const totalHeight = Math.max(naturalHeight, lastItemY + TOP_PAD);
 
-    return { visMin: minL, totalHeight, ticks, eraBands, positionedItems, spanLaneMap, dataRange: maxL - minL };
+    return { visMin: minL, visMax: maxL, totalHeight, eraBands, positionedItems, spanLaneMap, dataRange: maxL - minL };
   }, [rawItems, pxPerYear, calendar]);
 
+  // ── Tick memo: only generates ticks for the visible slice ─
+  // Re-runs on scroll (cheap — generates ~20–50 ticks max).
+  const ticks = useMemo(() => {
+    const vh     = viewportHRef.current;
+    const buffer = vh / pxPerYear; // one viewport's worth of buffer above + below
+    const viewMin = Math.max(visMin, visMin + (scrollTop - TOP_PAD) / pxPerYear - buffer);
+    const viewMax = Math.min(visMax, visMin + (scrollTop + vh - TOP_PAD) / pxPerYear + buffer);
+    if (viewMin >= viewMax) return [];
+    return generateTicks(viewMin, viewMax, pxPerYear, calendar ?? undefined);
+  }, [scrollTop, pxPerYear, calendar, visMin, visMax]);
+
   function zoom(factor: number) {
-    setPxPerYear((prev) => Math.min(MAX_PX, Math.max(MIN_PX, prev * factor)));
+    const el = scrollAreaRef.current;
+    setPxPerYear((prev) => {
+      const next = Math.min(MAX_PX, Math.max(MIN_PX, prev * factor));
+      if (el && next !== prev) {
+        // Keep the linear position at the viewport centre stable after zoom
+        const centerLinear = visMin + (el.scrollTop + el.clientHeight / 2 - TOP_PAD) / prev;
+        pendingScrollRef.current = TOP_PAD + (centerLinear - visMin) * next - el.clientHeight / 2;
+      }
+      return next;
+    });
   }
 
   function applyZoomStr() {
     const n = parseInt(zoomStr, 10);
     if (!isNaN(n) && n > 0) {
-      setPxPerYear(Math.min(MAX_PX, Math.max(MIN_PX, (n / 100) * DEFAULT_PX)));
+      const el = scrollAreaRef.current;
+      setPxPerYear((prev) => {
+        const next = Math.min(MAX_PX, Math.max(MIN_PX, (n / 100) * DEFAULT_PX));
+        if (el && next !== prev) {
+          const centerLinear = visMin + (el.scrollTop + el.clientHeight / 2 - TOP_PAD) / prev;
+          pendingScrollRef.current = TOP_PAD + (centerLinear - visMin) * next - el.clientHeight / 2;
+        }
+        return next;
+      });
     } else {
       setZoomStr(String(Math.round(pxPerYear / DEFAULT_PX * 100)));
     }
@@ -155,6 +197,37 @@ export default function TimelineView() {
     const availableH = scrollAreaRef.current.clientHeight - TOP_PAD * 2;
     const fitted = Math.max(MIN_PX, Math.min(MAX_PX, availableH / dataRange));
     setPxPerYear(fitted);
+  }
+
+  function handleGoToYear() {
+    const year = parseInt(goToYearStr, 10);
+    if (isNaN(year) || !scrollAreaRef.current) return;
+    const targetY = yearToY(year, visMin, pxPerYear, TOP_PAD);
+    scrollAreaRef.current.scrollTop = targetY - scrollAreaRef.current.clientHeight / 2;
+  }
+
+  function handleFitToRange() {
+    const from = parseInt(fromYearStr, 10);
+    const to   = parseInt(toYearStr, 10);
+    if (isNaN(from) || isNaN(to) || from >= to || !scrollAreaRef.current) return;
+    const availH  = scrollAreaRef.current.clientHeight - TOP_PAD * 2;
+    const fitted  = Math.max(MIN_PX, Math.min(MAX_PX, availH / (to - from)));
+    const targetY = yearToY(from, visMin, fitted, TOP_PAD);
+    pendingScrollRef.current = targetY - scrollAreaRef.current.clientHeight / 2;
+    setPxPerYear(fitted);
+  }
+
+  const showMonthDetail = pxPerYear >= MONTH_TICK_THRESHOLD;
+  const showDayDetail   = pxPerYear >= DAY_TICK_THRESHOLD;
+
+  function getItemLabel(item: TimelineItem): string {
+    if (!showMonthDetail || !calendar) return item.dateLabel;
+    if (item.kind === 'point') {
+      return formatDetailedDateLabel(item.linear, calendar, showDayDetail);
+    }
+    const startLabel = formatDetailedDateLabel(item.startLinear, calendar, showDayDetail);
+    if (item.ongoing) return `${startLabel} →`;
+    return `${startLabel} – ${formatDetailedDateLabel(item.endLinear, calendar, showDayDetail)}`;
   }
 
   function handleItemClick(entityId: string) {
@@ -217,10 +290,60 @@ export default function TimelineView() {
             <ArrowsOut size={14} />
           </button>
         </div>
+
+        <div className={styles.toolbarSpacer} />
+
+        {/* Navigator */}
+        <div className={styles.navControls}>
+          <span className={styles.navLabel}>Go to</span>
+          <input
+            className={styles.navInput}
+            type="text"
+            value={goToYearStr}
+            onChange={(e) => setGoToYearStr(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { handleGoToYear(); (e.target as HTMLInputElement).blur(); }
+            }}
+            onBlur={handleGoToYear}
+            placeholder="Year"
+            aria-label="Go to year"
+          />
+          <div className={styles.navSep} />
+          <span className={styles.navLabel}>Fit</span>
+          <input
+            className={styles.navInput}
+            type="text"
+            value={fromYearStr}
+            onChange={(e) => setFromYearStr(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleFitToRange(); }}
+            placeholder="From"
+            aria-label="Fit from year"
+          />
+          <span className={styles.navLabel}>–</span>
+          <input
+            className={styles.navInput}
+            type="text"
+            value={toYearStr}
+            onChange={(e) => setToYearStr(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleFitToRange(); }}
+            placeholder="To"
+            aria-label="Fit to year"
+          />
+          <button className={styles.navFitBtn} onClick={handleFitToRange}>
+            Fit
+          </button>
+        </div>
       </div>
 
       {/* Scrollable canvas */}
-      <div className={styles.scrollArea} ref={scrollAreaRef}>
+      <div
+        className={styles.scrollArea}
+        ref={scrollAreaRef}
+        onScroll={(e) => {
+          setScrollTop(e.currentTarget.scrollTop);
+          viewportHRef.current = e.currentTarget.clientHeight;
+        }}
+      >
         <div className={styles.canvas} style={{ height: totalHeight }}>
 
           {/* Era bands (background shading) */}
@@ -293,8 +416,10 @@ export default function TimelineView() {
             );
           })}
 
-          {/* Events */}
-          {positionedItems.map(({ item, y }) => {
+          {/* Events — only render items visible in the current scroll window */}
+          {positionedItems.filter(({ y }) =>
+            y >= scrollTop - 80 && y <= scrollTop + viewportHRef.current + 80
+          ).map(({ item, y }) => {
             if (item.kind === 'span') {
               const lane      = spanLaneMap.get(item.entityId) ?? 0;
               const barLeft   = AXIS_X + SPAN_OFFSET + lane * SPAN_LANE_W;
@@ -325,7 +450,7 @@ export default function TimelineView() {
                   >
                     <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} weight="duotone" />
                     <span style={{ color: item.entityColor }}>{item.entityTitle}</span>
-                    <span className={styles.itemYear}>{item.dateLabel}</span>
+                    <span className={styles.itemYear}>{getItemLabel(item)}</span>
                   </button>
                 </div>
               );
@@ -346,7 +471,7 @@ export default function TimelineView() {
                   <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} weight="duotone" />
                   <span>{item.entityTitle}</span>
                   {item.fieldLabel && <span className={styles.fieldTag}>· {item.fieldLabel}</span>}
-                  <span className={styles.itemYear}>{item.dateLabel}</span>
+                  <span className={styles.itemYear}>{getItemLabel(item)}</span>
                 </button>
               </div>
             );

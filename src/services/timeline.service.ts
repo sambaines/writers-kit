@@ -6,6 +6,8 @@ import {
   formatCustomDateLabel,
   getEraForYear,
   yearToLabel,
+  getDaysInMonth,
+  getTotalDaysInYear,
 } from './calendar.service';
 
 /* ─── Timeline item types ───────────────────────────────── */
@@ -122,6 +124,9 @@ export interface Tick {
   isEraBoundary: boolean;
 }
 
+const MONTH_TICK_THRESHOLD = 120; // px/yr at which month ticks appear
+const DAY_TICK_THRESHOLD   = 800; // px/yr at which day ticks appear
+
 export function generateTicks(
   minLinear: number,
   maxLinear: number,
@@ -131,50 +136,99 @@ export function generateTicks(
   const range = maxLinear - minLinear;
   if (range <= 0) return [];
 
-  const targetTicks = Math.max(4, Math.min(20, Math.floor((range * pxPerYear) / 80)));
-  const rawInterval = range / targetTicks;
-  const magnitude   = Math.pow(10, Math.floor(Math.log10(rawInterval || 1)));
-  const candidates  = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000];
-  const multiplied  = candidates.map((c) => c * magnitude);
-  const interval    = multiplied.find((c) => c >= rawInterval) ?? magnitude;
-  const majorInterval = interval * 5;
-
-  const start = Math.ceil(minLinear / interval) * interval;
   const ticks: Tick[] = [];
 
-  for (let lin = start; lin <= maxLinear; lin += interval) {
-    const year = Math.round(lin);
-    const label = calendar
-      ? yearToLabel(calendar, year)
-      : year < 0 ? `${Math.abs(year)} BR` : `Yr ${year}`;
-    ticks.push({
-      linear: lin,
-      label,
-      major: lin % majorInterval < interval / 2,
-      isEraBoundary: false,
-    });
+  if (calendar && pxPerYear >= MONTH_TICK_THRESHOLD) {
+    // ── Sub-year tick mode ──────────────────────────────────
+    const yearStart = Math.floor(minLinear);
+    const yearEnd   = Math.ceil(maxLinear);
+
+    for (let year = yearStart; year <= yearEnd; year++) {
+      // Year-boundary tick (linear = exact integer)
+      if (year >= minLinear && year <= maxLinear) {
+        ticks.push({ linear: year, label: yearToLabel(calendar, year), major: true, isEraBoundary: false });
+      }
+
+      if (pxPerYear >= DAY_TICK_THRESHOLD) {
+        // Day-level ticks
+        const totalDays = getTotalDaysInYear(calendar, year);
+        const pxPerDay  = pxPerYear / totalDays;
+        const dayStep   = pxPerDay >= 15 ? 1 : pxPerDay >= 8 ? 5 : 10;
+
+        for (let m = 1; m <= calendar.months.length; m++) {
+          const daysInMonth = getDaysInMonth(calendar, year, m);
+          for (let d = 1; d <= daysInMonth; d += dayStep) {
+            if (d === 1 && m === 1) continue; // year boundary already added above
+            const linear = customDateToLinear({ year, month: m, day: d }, calendar);
+            if (linear < minLinear || linear > maxLinear) continue;
+            const isMonthStart = d === 1;
+            ticks.push({
+              linear,
+              label: isMonthStart ? calendar.months[m - 1].name : String(d),
+              major: isMonthStart,
+              isEraBoundary: false,
+            });
+          }
+        }
+      } else {
+        // Month-level ticks only (skip month 1 — covered by year boundary)
+        for (let m = 2; m <= calendar.months.length; m++) {
+          const linear = customDateToLinear({ year, month: m, day: 1 }, calendar);
+          if (linear < minLinear || linear > maxLinear) continue;
+          ticks.push({ linear, label: calendar.months[m - 1].name, major: true, isEraBoundary: false });
+        }
+      }
+    }
+  } else {
+    // ── Year-interval tick mode (existing logic) ────────────
+    const targetTicks   = Math.max(4, Math.min(20, Math.floor((range * pxPerYear) / 80)));
+    const rawInterval   = range / targetTicks;
+    const magnitude     = Math.pow(10, Math.floor(Math.log10(rawInterval || 1)));
+    const candidates    = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000];
+    const multiplied    = candidates.map((c) => c * magnitude);
+    const interval      = multiplied.find((c) => c >= rawInterval) ?? magnitude;
+    const majorInterval = interval * 5;
+    const start         = Math.ceil(minLinear / interval) * interval;
+
+    for (let lin = start; lin <= maxLinear; lin += interval) {
+      const year  = Math.round(lin);
+      const label = calendar
+        ? yearToLabel(calendar, year)
+        : year < 0 ? `${Math.abs(year)} BR` : `Yr ${year}`;
+      ticks.push({ linear: lin, label, major: lin % majorInterval < interval / 2, isEraBoundary: false });
+    }
+
+    // Insert era boundary ticks (year mode only — sub-year mode handles them in the era pass below)
+    if (calendar) {
+      for (const era of calendar.eras) {
+        const boundary = era.startYear;
+        if (boundary < minLinear || boundary > maxLinear) continue;
+        const nearIdx = ticks.findIndex(
+          (t) => !t.isEraBoundary && Math.abs(t.linear - boundary) < interval * 0.6,
+        );
+        if (nearIdx >= 0) ticks.splice(nearIdx, 1);
+        ticks.push({ linear: boundary, label: era.name, major: true, isEraBoundary: true });
+      }
+    }
   }
 
-  // Insert era boundary ticks
-  if (calendar) {
+  // In sub-year mode: replace year-boundary ticks that coincide with era starts
+  if (calendar && pxPerYear >= MONTH_TICK_THRESHOLD) {
     for (const era of calendar.eras) {
       const boundary = era.startYear;
       if (boundary < minLinear || boundary > maxLinear) continue;
       const nearIdx = ticks.findIndex(
-        (t) => !t.isEraBoundary && Math.abs(t.linear - boundary) < interval * 0.6,
+        (t) => !t.isEraBoundary && Math.abs(t.linear - boundary) < 0.01,
       );
       if (nearIdx >= 0) ticks.splice(nearIdx, 1);
-      ticks.push({
-        linear: boundary,
-        label: era.name,
-        major: true,
-        isEraBoundary: true,
-      });
+      ticks.push({ linear: boundary, label: era.name, major: true, isEraBoundary: true });
     }
   }
 
   return ticks.sort((a, b) => a.linear - b.linear);
 }
+
+export { MONTH_TICK_THRESHOLD, DAY_TICK_THRESHOLD };
 
 /* ─── Era band rendering data ───────────────────────────── */
 

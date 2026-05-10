@@ -169,3 +169,42 @@ export function formatCustomDateLabel(linear: number, calendar?: VaultCalendar):
   if (!calendar) return String(Math.round(linear));
   return yearToLabel(calendar, Math.floor(linear));
 }
+
+/* ─── Linear float → CustomDate ─────────────────────────── */
+
+export function linearToCustomDate(linear: number, calendar: VaultCalendar): CustomDate {
+  const year     = Math.floor(linear);
+  const fraction = linear - year;
+  const totalDays = getTotalDaysInYear(calendar, year);
+
+  if (totalDays === 0 || fraction <= 0) return { year, month: 1, day: 1 };
+
+  // fraction = (dayOfYear - 1) / totalDays  →  dayOfYear = round(fraction * totalDays) + 1
+  const targetDay = Math.round(fraction * totalDays) + 1;
+
+  let accumulated = 0;
+  for (let m = 1; m <= calendar.months.length; m++) {
+    const daysInMonth = getDaysInMonth(calendar, year, m);
+    if (targetDay <= accumulated + daysInMonth) {
+      return { year, month: m, day: Math.max(1, targetDay - accumulated) };
+    }
+    accumulated += daysInMonth;
+  }
+
+  // Clamp to last day of last month
+  const lastMonth = calendar.months.length;
+  return { year, month: lastMonth, day: getDaysInMonth(calendar, year, lastMonth) };
+}
+
+/* ─── Detailed label (month/day aware) ──────────────────── */
+
+export function formatDetailedDateLabel(
+  linear: number,
+  calendar: VaultCalendar,
+  showDay = false,
+): string {
+  const { year, month, day } = linearToCustomDate(linear, calendar);
+  const monthName = calendar.months[month - 1]?.name ?? `M${month}`;
+  const eraLabel  = yearToLabel(calendar, year);
+  return showDay ? `${monthName} ${day}, ${eraLabel}` : `${monthName}, ${eraLabel}`;
+}
