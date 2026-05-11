@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -151,6 +151,25 @@ export default function TimelineView() {
 
     return { visMin: minL, visMax: maxL, totalHeight, eraBands, positionedItems, spanLaneMap, dataRange: maxL - minL };
   }, [rawItems, pxPerYear, calendar]);
+
+  // Always-current ref so the store subscription below never reads a stale closure
+  const positionedItemsRef = useRef(positionedItems);
+  positionedItemsRef.current = positionedItems;
+
+  // Scroll to entity when filter panel name is clicked — set up once, reads from refs
+  useEffect(() => {
+    return useUIStore.subscribe((state, prevState) => {
+      if (state.timelineScrollTarget === prevState.timelineScrollTarget) return;
+      const target = state.timelineScrollTarget;
+      if (!target || !scrollAreaRef.current) return;
+      const match = positionedItemsRef.current.find((pi) => pi.item.entityId === target);
+      if (match) {
+        const el = scrollAreaRef.current;
+        el.scrollTop = Math.max(0, match.y - el.clientHeight / 2);
+      }
+      useUIStore.getState().setTimelineScrollTarget(null);
+    });
+  }, []);
 
   // ── Tick memo: only generates ticks for the visible slice ─
   // Re-runs on scroll (cheap — generates ~20–50 ticks max).

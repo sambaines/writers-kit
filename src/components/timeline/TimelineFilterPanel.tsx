@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ArrowCounterClockwise, CaretDown, CaretRight, Warning } from '@phosphor-icons/react';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
+import { useUIStore } from '../../store/ui.store';
 import { buildTimelineItems } from '../../services/timeline.service';
 import DynamicIcon from '../ui/DynamicIcon';
 import styles from './TimelineFilterPanel.module.css';
@@ -26,6 +27,8 @@ export default function TimelineFilterPanel() {
         resetTimelineFilters:  s.resetTimelineFilters,
       })),
     );
+
+  const setTimelineScrollTarget = useUIStore((s) => s.setTimelineScrollTarget);
 
   // Track which groups are collapsed (all open by default)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -141,11 +144,19 @@ export default function TimelineFilterPanel() {
                         key={entity.id}
                         className={`${styles.entityRow} ${typeHidden ? styles.entityRowDisabled : ''}`}
                       >
-                        <span
-                          className={`${styles.entityTitle} ${!hasDate ? styles.entityNoDate : ''}`}
-                        >
-                          {entity.title}
-                        </span>
+                        {hasDate ? (
+                          <button
+                            className={`${styles.entityTitle} ${styles.entityTitleBtn}`}
+                            onClick={() => setTimelineScrollTarget(entity.id)}
+                            title={`Scroll to ${entity.title}`}
+                          >
+                            {entity.title}
+                          </button>
+                        ) : (
+                          <span className={`${styles.entityTitle} ${styles.entityNoDate}`}>
+                            {entity.title}
+                          </span>
+                        )}
                         {!hasDate && (
                           <span className={styles.noDateBadge} title="No date value set">
                             <Warning size={10} weight="fill" />

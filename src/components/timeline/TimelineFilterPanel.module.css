@@ -140,6 +140,20 @@
   white-space: nowrap;
 }
 
+.entityTitleBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.entityTitleBtn:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .entityNoDate {
   color: var(--text-disabled);
 }
