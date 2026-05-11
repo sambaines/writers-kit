@@ -22,6 +22,8 @@ interface UIState {
 
   /* Timeline */
   timelineScrollTarget: string | null;
+  timelinePxPerYear: number;
+  timelineScrollTop: number;
 
   /* Actions */
   setActiveView: (view: ViewMode) => void;
@@ -35,6 +37,8 @@ interface UIState {
   setEditorView: (view: EditorView) => void;
   setSaveStatus: (status: SaveStatus) => void;
   setTimelineScrollTarget: (entityId: string | null) => void;
+  setTimelinePxPerYear: (px: number) => void;
+  setTimelineScrollTop: (top: number) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -48,6 +52,8 @@ export const useUIStore = create<UIState>((set) => ({
   editorView: 'rich',
   saveStatus: 'idle',
   timelineScrollTarget: null,
+  timelinePxPerYear: 60,
+  timelineScrollTop: 0,
 
   setActiveView: (view) => set({ activeView: view }),
   setActiveTypeId: (id) => set({ activeTypeId: id, activeEntityId: null }),
@@ -61,4 +67,6 @@ export const useUIStore = create<UIState>((set) => ({
   setEditorView: (view) => set({ editorView: view }),
   setSaveStatus: (status) => set({ saveStatus: status }),
   setTimelineScrollTarget: (entityId) => set({ timelineScrollTarget: entityId }),
+  setTimelinePxPerYear: (px) => set({ timelinePxPerYear: px }),
+  setTimelineScrollTop: (top) => set({ timelineScrollTop: top }),
 }));

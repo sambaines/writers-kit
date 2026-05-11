@@ -45,14 +45,15 @@ export default function TimelineView() {
     [entities, hiddenTypes, hiddenEntities],
   );
 
-  const [pxPerYear, setPxPerYear] = useState(DEFAULT_PX);
-  const [zoomStr, setZoomStr]     = useState('100');
-  const [scrollTop, setScrollTop] = useState(0);
-  const zoomInputFocused = useRef(false);
-  const scrollAreaRef    = useRef<HTMLDivElement>(null);
-  const prevPxRef        = useRef(DEFAULT_PX);
-  const pendingScrollRef = useRef<number | null>(null);
-  const viewportHRef     = useRef(800); // updated on scroll/resize
+  const [pxPerYear, setPxPerYear] = useState(() => useUIStore.getState().timelinePxPerYear);
+  const [zoomStr, setZoomStr]     = useState(() => String(Math.round(useUIStore.getState().timelinePxPerYear / DEFAULT_PX * 100)));
+  const [scrollTop, setScrollTop] = useState(() => useUIStore.getState().timelineScrollTop);
+  const zoomInputFocused    = useRef(false);
+  const scrollAreaRef       = useRef<HTMLDivElement>(null);
+  const prevPxRef           = useRef(pxPerYear);
+  const pendingScrollRef    = useRef<number | null>(null);
+  const viewportHRef        = useRef(800); // updated on scroll/resize
+  const didRestoreScrollRef = useRef(false);
 
   // Navigator state
   const [goToYearStr, setGoToYearStr] = useState('');
@@ -67,8 +68,18 @@ export default function TimelineView() {
     }
   }
 
-  // Apply scroll correction synchronously after DOM updates, before the browser paints
+  // Persist zoom level to store so it survives navigation away and back
+  useEffect(() => {
+    useUIStore.getState().setTimelinePxPerYear(pxPerYear);
+  }, [pxPerYear]);
+
+  // Restore scroll position on mount; apply zoom-triggered scroll corrections on zoom changes
   useLayoutEffect(() => {
+    if (!didRestoreScrollRef.current && scrollAreaRef.current) {
+      const stored = useUIStore.getState().timelineScrollTop;
+      if (stored > 0) scrollAreaRef.current.scrollTop = stored;
+      didRestoreScrollRef.current = true;
+    }
     if (pendingScrollRef.current !== null && scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = Math.max(0, pendingScrollRef.current);
       pendingScrollRef.current = null;
@@ -371,8 +382,10 @@ export default function TimelineView() {
         className={styles.scrollArea}
         ref={scrollAreaRef}
         onScroll={(e) => {
-          setScrollTop(e.currentTarget.scrollTop);
+          const top = e.currentTarget.scrollTop;
+          setScrollTop(top);
           viewportHRef.current = e.currentTarget.clientHeight;
+          useUIStore.getState().setTimelineScrollTop(top);
         }}
       >
         <div className={styles.canvas} style={{ height: totalHeight }}>
