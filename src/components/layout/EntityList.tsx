@@ -326,6 +326,17 @@ export default function EntityList() {
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         )}
+        {canCreate && (
+          <button
+            className={styles.addBtn}
+            onClick={handleNewEntity}
+            disabled={creating}
+            aria-label={`New ${label}`}
+            title={`New ${label}`}
+          >
+            <Plus size={13} />
+          </button>
+        )}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
@@ -497,17 +508,6 @@ export default function EntityList() {
         onClose={() => setDeleteTarget(null)}
       />
 
-      {/* Footer */}
-      <div className={styles.footer}>
-        <button
-          className={styles.newBtn}
-          onClick={handleNewEntity}
-          disabled={!canCreate || creating}
-        >
-          <Plus size={13} />
-          <span>{creating ? 'Creating…' : `New ${label === 'All Files' ? 'File' : label}`}</span>
-        </button>
-      </div>
     </div>
   );
 }
