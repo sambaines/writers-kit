@@ -9,6 +9,7 @@ import { useVaultData, useVaultStore } from '../../store/vault.store';
 import type { Entity, VaultCalendar } from '../../types';
 import { parseCustomDate, parseCustomDateRange, yearToLabel } from '../../services/calendar.service';
 import DynamicIcon from '../ui/DynamicIcon';
+import DeleteEntityDialog from '../entity/DeleteEntityDialog';
 import clsx from 'clsx';
 import styles from './EntityList.module.css';
 
@@ -58,6 +59,7 @@ export default function EntityList() {
   const [creating, setCreating] = useState(false);
   const [sortPerType, setSortPerType] = useState<Record<string, SortState>>({});
   const [visiblePropsPerType, setVisiblePropsPerType] = useState<Record<string, string[]>>({});
+  const [deleteTarget, setDeleteTarget] = useState<Entity | null>(null);
 
   const { activeTypeId, activeEntityId, setActiveEntityId } = useUIStore(
     useShallow((s) => ({
@@ -468,12 +470,7 @@ export default function EntityList() {
                         <ContextMenu.Separator className={styles.ctxSep} />
                         <ContextMenu.Item
                           className={`${styles.ctxItem} ${styles.ctxItemDanger}`}
-                          onSelect={() => {
-                            if (confirm(`Delete "${entity.title}"? This cannot be undone.`)) {
-                              void deleteEntity(entity);
-                              if (activeEntityId === entity.id) setActiveEntityId(null);
-                            }
-                          }}
+                          onSelect={() => setDeleteTarget(entity)}
                         >
                           <Trash size={13} />
                           <span>Delete</span>
@@ -490,6 +487,15 @@ export default function EntityList() {
           <ScrollArea.Thumb className={styles.scrollThumb} />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
+
+      <DeleteEntityDialog
+        entity={deleteTarget}
+        onConfirm={(e) => {
+          void deleteEntity(e);
+          if (activeEntityId === e.id) setActiveEntityId(null);
+        }}
+        onClose={() => setDeleteTarget(null)}
+      />
 
       {/* Footer */}
       <div className={styles.footer}>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import matter from 'gray-matter';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -38,6 +38,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import CoverImage from './CoverImage';
+import DeleteEntityDialog from '../entity/DeleteEntityDialog';
 import clsx from 'clsx';
 import styles from './EditorPane.module.css';
 
@@ -97,6 +98,7 @@ export default function EditorPane() {
   const archiveEntity = useVaultStore((s) => s.archiveEntity);
   const deleteEntity  = useVaultStore((s) => s.deleteEntity);
   const activeEntity = entities.find((e) => e.id === activeEntityId) ?? null;
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Keep a stable ref to entities/schemas for the suggestion plugin
   const entitiesRef    = useRef(entities);
@@ -545,12 +547,7 @@ export default function EditorPane() {
                     <button
                       className={clsx(styles.toolbarBtn, styles.toolbarBtnDanger)}
                       aria-label="Delete entity"
-                      onClick={() => {
-                        if (confirm(`Delete "${activeEntity.title}"? This cannot be undone.`)) {
-                          void deleteEntity(activeEntity);
-                          useUIStore.getState().setActiveEntityId(null);
-                        }
-                      }}
+                      onClick={() => setDeleteDialogOpen(true)}
                     >
                       <Trash size={15} />
                     </button>
@@ -662,6 +659,14 @@ export default function EditorPane() {
         </div>
 
       </div>
+      <DeleteEntityDialog
+        entity={deleteDialogOpen ? activeEntity : null}
+        onConfirm={(e) => {
+          void deleteEntity(e);
+          useUIStore.getState().setActiveEntityId(null);
+        }}
+        onClose={() => setDeleteDialogOpen(false)}
+      />
     </Tooltip.Provider>
   );
 }
