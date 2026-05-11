@@ -144,9 +144,13 @@ export function generateTicks(
     const yearEnd   = Math.ceil(maxLinear);
 
     for (let year = yearStart; year <= yearEnd; year++) {
-      // Year-boundary tick (linear = exact integer)
+      // Year-boundary tick — show year + first month name, no era (era bands provide that context)
       if (year >= minLinear && year <= maxLinear) {
-        ticks.push({ linear: year, label: yearToLabel(calendar, year), major: true, isEraBoundary: false });
+        const negLabel  = calendar.negativeLabel ?? 'BR';
+        const yearStr   = year < 0 ? `${Math.abs(year)} ${negLabel}` : `Yr ${year}`;
+        const month1    = calendar.months[0]?.name;
+        const label     = month1 ? `${yearStr} · ${month1}` : yearStr;
+        ticks.push({ linear: year, label, major: true, isEraBoundary: false });
       }
 
       if (pxPerYear >= DAY_TICK_THRESHOLD) {

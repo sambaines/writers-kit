@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -199,22 +200,33 @@ export default function TimelineView() {
     setPxPerYear(fitted);
   }
 
+  const GOTO_YEAR_ZOOM = MONTH_TICK_THRESHOLD * 2; // 240px/yr — comfortably shows months
+
   function handleGoToYear() {
     const year = parseInt(goToYearStr, 10);
     if (isNaN(year) || !scrollAreaRef.current) return;
-    const targetY = yearToY(year, visMin, pxPerYear, TOP_PAD);
-    scrollAreaRef.current.scrollTop = targetY - scrollAreaRef.current.clientHeight / 2;
+    const el = scrollAreaRef.current;
+    // Zoom to month level if not already there; keep existing zoom if already deeper
+    const targetPx = Math.max(pxPerYear, GOTO_YEAR_ZOOM);
+    if (targetPx !== pxPerYear) {
+      flushSync(() => setPxPerYear(targetPx));
+    }
+    const targetY = yearToY(year, visMin, targetPx, TOP_PAD);
+    el.scrollTop = Math.max(0, targetY - el.clientHeight / 2);
   }
 
   function handleFitToRange() {
     const from = parseInt(fromYearStr, 10);
     const to   = parseInt(toYearStr, 10);
     if (isNaN(from) || isNaN(to) || from >= to || !scrollAreaRef.current) return;
-    const availH  = scrollAreaRef.current.clientHeight - TOP_PAD * 2;
+    const el      = scrollAreaRef.current;
+    const availH  = el.clientHeight - TOP_PAD * 2;
     const fitted  = Math.max(MIN_PX, Math.min(MAX_PX, availH / (to - from)));
+    // flushSync forces React to commit the new canvas height before we set scrollTop
+    flushSync(() => setPxPerYear(fitted));
+    // Position 'from' at TOP_PAD from the viewport top — 'to' then lands at TOP_PAD from the bottom
     const targetY = yearToY(from, visMin, fitted, TOP_PAD);
-    pendingScrollRef.current = targetY - scrollAreaRef.current.clientHeight / 2;
-    setPxPerYear(fitted);
+    el.scrollTop  = Math.max(0, targetY - TOP_PAD);
   }
 
   const showMonthDetail = pxPerYear >= MONTH_TICK_THRESHOLD;
@@ -304,10 +316,10 @@ export default function TimelineView() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') { handleGoToYear(); (e.target as HTMLInputElement).blur(); }
             }}
-            onBlur={handleGoToYear}
             placeholder="Year"
             aria-label="Go to year"
           />
+          <button className={styles.navFitBtn} onClick={handleGoToYear}>Go</button>
           <div className={styles.navSep} />
           <span className={styles.navLabel}>Fit</span>
           <input
