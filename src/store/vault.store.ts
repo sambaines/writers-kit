@@ -20,6 +20,10 @@ import {
   loadTimelineFilters,
   saveTimelineFilters,
 } from '../services/timeline-filters.service';
+import {
+  loadTypeOrder,
+  saveTypeOrder,
+} from '../services/type-order.service';
 
 /* ─── Relation helpers ───────────────────────────────────── */
 
@@ -82,6 +86,7 @@ interface VaultState {
   reassignEntitiesType: (fromType: string, toType: string) => Promise<void>;
   addRelation: (sourceId: string, targetId: string, kind: RelationKind) => Promise<void>;
   removeRelation: (sourceId: string, targetId: string, kind: RelationKind) => Promise<void>;
+  reorderSchemas: (orderedIds: string[]) => Promise<void>;
 }
 
 export const useVaultStore = create<VaultState>()(
@@ -100,12 +105,19 @@ export const useVaultStore = create<VaultState>()(
         set({ isIndexing: true, error: null, schemas: [], entities: [], calendar: null, hiddenTypes: [], hiddenEntities: [] });
         try {
           await initVault(path);
-          const [{ schemas, entities }, calendar, filters] = await Promise.all([
+          const [{ schemas, entities }, calendar, filters, typeOrder] = await Promise.all([
             scanVault(path),
             loadCalendarFile(path),
             loadTimelineFilters(path),
+            loadTypeOrder(path),
           ]);
-          set({ vaultPath: path, schemas, entities, calendar, isIndexing: false, hiddenTypes: filters.hiddenTypes, hiddenEntities: filters.hiddenEntities });
+          const orderedSchemas = typeOrder.length > 0
+            ? [
+                ...typeOrder.map((id) => schemas.find((s) => s.id === id)).filter(Boolean) as typeof schemas,
+                ...schemas.filter((s) => !typeOrder.includes(s.id)),
+              ]
+            : schemas;
+          set({ vaultPath: path, schemas: orderedSchemas, entities, calendar, isIndexing: false, hiddenTypes: filters.hiddenTypes, hiddenEntities: filters.hiddenEntities });
         } catch (err) {
           set({ error: String(err), isIndexing: false });
           throw err;
@@ -268,6 +280,17 @@ export const useVaultStore = create<VaultState>()(
         ]);
         updateEntity(updSrc);
         updateEntity(updTgt);
+      },
+
+      reorderSchemas: async (orderedIds) => {
+        const { vaultPath, schemas } = get();
+        if (!vaultPath) return;
+        const reordered = [
+          ...orderedIds.map((id) => schemas.find((s) => s.id === id)).filter(Boolean) as typeof schemas,
+          ...schemas.filter((s) => !orderedIds.includes(s.id)),
+        ];
+        set({ schemas: reordered });
+        await saveTypeOrder(vaultPath, orderedIds);
       },
 
       removeRelation: async (sourceId, targetId, kind) => {

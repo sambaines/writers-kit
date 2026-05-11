@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import {
   Feather, Files, Archive, Plus, Gear, FolderOpen,
-  PencilSimple, Trash, ChartLine,
+  PencilSimple, Trash, ChartLine, DotsSixVertical,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -32,13 +32,19 @@ export default function TypeNav() {
   );
 
   const { schemas, entities } = useVaultData();
-  const openVault  = useVaultStore((s) => s.openVault);
-  const closeVault = useVaultStore((s) => s.closeVault);
+  const openVault       = useVaultStore((s) => s.openVault);
+  const closeVault      = useVaultStore((s) => s.closeVault);
+  const reorderSchemas  = useVaultStore((s) => s.reorderSchemas);
 
   const [newTypeOpen, setNewTypeOpen]     = useState(false);
   const [editSchema, setEditSchema]       = useState<SchemaDefinition | null>(null);
   const [deleteTarget, setDeleteTarget]   = useState<SchemaDefinition | null>(null);
   const [settingsOpen, setSettingsOpen]   = useState(false);
+  const [draggingId, setDraggingId]       = useState<string | null>(null);
+  const [dragOverId, setDragOverId]       = useState<string | null>(null);
+  const schemasRef   = useRef(schemas);
+  schemasRef.current = schemas;
+  const dragStateRef = useRef<{ id: string; overId: string | null } | null>(null);
 
   async function handleChangeVault() {
     const path = await pickFolder();
@@ -61,6 +67,47 @@ export default function TypeNav() {
 
   const allCount     = entities.filter((e) => !e.archived).length;
   const archiveCount = entities.filter((e) => e.archived).length;
+
+  function startDrag(e: React.MouseEvent, id: string) {
+    e.preventDefault(); // prevent text selection while dragging
+    setDraggingId(id);
+    dragStateRef.current = { id, overId: null };
+
+    function onMouseMove(me: MouseEvent) {
+      const state = dragStateRef.current;
+      if (!state) return;
+      const el  = document.elementFromPoint(me.clientX, me.clientY);
+      const row = el?.closest('[data-schema-id]') as HTMLElement | null;
+      const hoverId = row?.dataset.schemaId ?? null;
+      const newOver = hoverId && hoverId !== state.id ? hoverId : null;
+      if (newOver !== state.overId) {
+        state.overId = newOver;
+        setDragOverId(newOver);
+      }
+    }
+
+    function onMouseUp() {
+      const state = dragStateRef.current;
+      if (state?.overId) {
+        const order = schemasRef.current.map((s) => s.id);
+        const from  = order.indexOf(state.id);
+        const to    = order.indexOf(state.overId);
+        if (from !== -1 && to !== -1) {
+          order.splice(from, 1);
+          order.splice(to, 0, state.id);
+          reorderSchemas(order);
+        }
+      }
+      setDraggingId(null);
+      setDragOverId(null);
+      dragStateRef.current = null;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    }
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
 
   return (
     <Tooltip.Provider delayDuration={600}>
@@ -107,7 +154,12 @@ export default function TypeNav() {
 
             {/* Entity Types */}
             <div className={styles.section}>
-              <div className={styles.sectionHeader}>Types</div>
+              <div className={styles.sectionHeader}>
+                <span>Types</span>
+                <button className={styles.addTypeBtn} onClick={() => setNewTypeOpen(true)} title="New type">
+                  <Plus size={13} />
+                </button>
+              </div>
               {schemas.length === 0 ? (
                 <p className={styles.emptyTypes}>No types yet</p>
               ) : (
@@ -117,9 +169,23 @@ export default function TypeNav() {
                   ).length;
                   const isActive = activeTypeId === schema.id && activeView !== 'timeline';
                   return (
-                    <ContextMenu.Root key={schema.id}>
-                      <ContextMenu.Trigger asChild>
-                        <div className={styles.typeRow}>
+                    <div
+                      key={schema.id}
+                      data-schema-id={schema.id}
+                      className={clsx(
+                        styles.typeRow,
+                        draggingId === schema.id && styles.dragging,
+                        dragOverId === schema.id && styles.dragOver,
+                      )}
+                    >
+                      <span
+                        className={styles.dragHandle}
+                        onMouseDown={(e) => startDrag(e, schema.id)}
+                      >
+                        <DotsSixVertical size={12} />
+                      </span>
+                      <ContextMenu.Root>
+                        <ContextMenu.Trigger asChild>
                           <button
                             className={clsx(styles.navItem, styles.typeItem, isActive && styles.active)}
                             onClick={() => handleNavClick(schema.id)}
@@ -137,28 +203,28 @@ export default function TypeNav() {
                             <span>{schema.name}</span>
                             <span className={styles.count}>{count}</span>
                           </button>
-                        </div>
-                      </ContextMenu.Trigger>
-                      <ContextMenu.Portal>
-                        <ContextMenu.Content className={styles.dropMenu}>
-                          <ContextMenu.Item
-                            className={styles.dropItem}
-                            onSelect={() => setEditSchema(schema)}
-                          >
-                            <PencilSimple size={13} />
-                            <span>Edit type</span>
-                          </ContextMenu.Item>
-                          <ContextMenu.Separator className={styles.dropSep} />
-                          <ContextMenu.Item
-                            className={`${styles.dropItem} ${styles.dropItemDanger}`}
-                            onSelect={() => handleDeleteSchema(schema)}
-                          >
-                            <Trash size={13} />
-                            <span>Delete type</span>
-                          </ContextMenu.Item>
-                        </ContextMenu.Content>
-                      </ContextMenu.Portal>
-                    </ContextMenu.Root>
+                        </ContextMenu.Trigger>
+                        <ContextMenu.Portal>
+                          <ContextMenu.Content className={styles.dropMenu}>
+                            <ContextMenu.Item
+                              className={styles.dropItem}
+                              onSelect={() => setEditSchema(schema)}
+                            >
+                              <PencilSimple size={13} />
+                              <span>Edit type</span>
+                            </ContextMenu.Item>
+                            <ContextMenu.Separator className={styles.dropSep} />
+                            <ContextMenu.Item
+                              className={`${styles.dropItem} ${styles.dropItemDanger}`}
+                              onSelect={() => handleDeleteSchema(schema)}
+                            >
+                              <Trash size={13} />
+                              <span>Delete type</span>
+                            </ContextMenu.Item>
+                          </ContextMenu.Content>
+                        </ContextMenu.Portal>
+                      </ContextMenu.Root>
+                    </div>
                   );
                 })
               )}
@@ -172,20 +238,6 @@ export default function TypeNav() {
 
         {/* Bottom actions */}
         <div className={styles.bottom}>
-          <Tooltip.Root>
-            <Tooltip.Trigger asChild>
-              <button className={styles.navItem} onClick={() => setNewTypeOpen(true)}>
-                <Plus size={14} />
-                <span>New Type</span>
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-              <Tooltip.Content className={styles.tooltip} side="right" sideOffset={8}>
-                Create a new entity type
-              </Tooltip.Content>
-            </Tooltip.Portal>
-          </Tooltip.Root>
-
           <Tooltip.Root>
             <Tooltip.Trigger asChild>
               <button className={clsx(styles.navItem, styles.settingsBtn)} onClick={handleChangeVault}>
