@@ -1,8 +1,19 @@
 /* ─── Track ───────────────────────────────────────────────── */
+/*
+ * Gradient is always the track background. A dark ::before overlay
+ * covers it in the OFF state and clips away (left→right) to reveal
+ * the gradient as the handle moves, creating the "pulled by handle" effect.
+ *
+ * Layer order (front to back):
+ *   ::after  — gradient focus ring (at offset-border position, inset: -1px)
+ *   handle   — z-index: 1
+ *   ::before — dark overlay (non-disabled) / gradient overlay (disabled on)
+ *   box-shadow (inset dark ring) — above background, below children
+ *   background (gradient)
+ */
 
 .track {
   position: relative;
-  isolation: isolate;
   display: inline-flex;
   align-items: center;
   width: 28px;
@@ -11,34 +22,60 @@
   padding: 2px;
   border: 1px solid #282a2a;
   box-shadow: inset 0 0 0 1px #0f1010;
-  background: #151717;
+  background: var(--gradient-primary);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-/* Remove default button chrome */
 .track:focus {
   outline: none;
 }
 
-/* ─── On state ────────────────────────────────────────────── */
+/* ─── Dark overlay — covers gradient in OFF state ──────────── */
 
-.track[data-state='checked'] {
-  background: var(--gradient-primary);
-  border-color: transparent;
-}
-
-/* ─── Focus ring — gradient outline outside the track ──────── */
-
-.track:focus-visible::after {
+.track:not([data-disabled])::before {
   content: '';
   position: absolute;
-  inset: -2px;
-  border-radius: 18px;
-  background: var(--gradient-primary);
-  z-index: -1;
+  inset: 0;
+  border-radius: 15px;
+  background: #151717;
+  box-shadow: inset 0 0 0 1px #0f1010;
+  clip-path: inset(0 0% 0 0);
+  transition: clip-path 0.15s ease;
   pointer-events: none;
+  z-index: 0;
+}
+
+/* ON: overlay clips away left→right in sync with handle travel */
+.track:not([data-disabled])[data-state='checked']::before {
+  clip-path: inset(0 100% 0 0);
+}
+
+/* ─── Focus ring — gradient on the offset border ───────────── */
+/*
+ * inset: -1px places ::after at the track's outer border edge
+ * (absolute children reference the padding edge; -1px steps back to border).
+ * The 1px transparent border + background-clip border-box paints the
+ * gradient only in that 1px border area, overlaying the dark #282a2a border.
+ */
+
+.track::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  background:
+    transparent padding-box,
+    var(--gradient-primary) border-box;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.15s ease;
+}
+
+.track[data-focused]::after {
+  opacity: 1;
 }
 
 /* ─── Disabled ─────────────────────────────────────────────── */
@@ -47,14 +84,12 @@
   cursor: default;
 }
 
-/* Disabled off */
 .track[data-disabled][data-state='unchecked'] {
   background: #5d6060;
   border-color: #5d6060;
   box-shadow: inset 0 0 0 1px #474949;
 }
 
-/* Disabled on — dark base with muted gradient overlay */
 .track[data-disabled][data-state='checked'] {
   background: #151717;
   border-color: #5d6060;
@@ -65,7 +100,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 14px;
+  border-radius: 15px;
   background: var(--gradient-primary);
   opacity: 0.56;
   pointer-events: none;
@@ -83,7 +118,7 @@
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease;
   will-change: transform;
 }
 
