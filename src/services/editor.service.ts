@@ -2,7 +2,28 @@ import matter from 'gray-matter';
 import { writeTextFile } from './fs.service';
 import { useVaultStore } from '../store/vault.store';
 import { useUIStore } from '../store/ui.store';
+import { annotateRelationsInYaml } from './vault.service';
 import type { Entity, EntityFrontmatter } from '../types';
+
+function buildTitleMap(): Map<string, string> {
+  return new Map(useVaultStore.getState().entities.map((e) => [e.id, e.title]));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function customRelationKeys(fm: Record<string, any>): Set<string> {
+  return new Set<string>(
+    (Array.isArray(fm.__customFields) ? fm.__customFields : [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((f: any) => f?.type === 'relation')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((f: any) => f?.key as string)
+      .filter(Boolean),
+  );
+}
+
+function annotated(yaml: string, fm: Record<string, unknown>): string {
+  return annotateRelationsInYaml(yaml, buildTitleMap(), customRelationKeys(fm));
+}
 
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -46,7 +67,7 @@ export async function saveEntity(entity: Entity, newTitle: string, newBody: stri
       _relatedTo: mergedRelatedTo,
     };
 
-    const content = matter.stringify(newBody, updatedFm as Record<string, unknown>);
+    const content = annotated(matter.stringify(newBody, updatedFm as Record<string, unknown>), updatedFm);
     const fullPath = `${vaultPath}/${entity.path}`;
     await writeTextFile(fullPath, content);
 
@@ -101,7 +122,7 @@ export async function saveRawContent(entity: Entity, rawContent: string): Promis
     fm._relatedTo = mergedRelatedTo;
 
     // Re-stringify with merged relatedTo and write
-    const mergedContent = matter.stringify(trimmedBody, fm as Record<string, unknown>);
+    const mergedContent = annotated(matter.stringify(trimmedBody, fm as Record<string, unknown>), fm);
     const fullPath = `${vaultPath}/${entity.path}`;
     await writeTextFile(fullPath, mergedContent);
 
@@ -132,7 +153,8 @@ export async function saveRawContent(entity: Entity, rawContent: string): Promis
 
 /** Build the full file string (frontmatter YAML + body) for display in raw mode. */
 export function buildRawContent(entity: Entity, currentBody: string): string {
-  return matter.stringify(currentBody, entity.frontmatter as Record<string, unknown>);
+  const fm = entity.frontmatter as Record<string, unknown>;
+  return annotated(matter.stringify(currentBody, fm), fm);
 }
 
 /**
@@ -198,7 +220,7 @@ async function addBidirectionalWikiLinks(
       __modified: new Date().toISOString(),
     };
     try {
-      const content = matter.stringify(target.body, updatedFm as Record<string, unknown>);
+      const content = annotated(matter.stringify(target.body, updatedFm as Record<string, unknown>), updatedFm);
       await writeTextFile(`${vaultPath}/${target.path}`, content);
       updateEntity({ ...target, frontmatter: updatedFm as EntityFrontmatter, modifiedAt: updatedFm.__modified });
     } catch (err) {

@@ -14,7 +14,6 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'custom-date-range', label: 'Custom Date Range' },
   { value: 'tags',              label: 'Tags' },
   { value: 'select',            label: 'Select' },
-  { value: 'relation',          label: 'Relation' },
 ];
 
 interface FieldEditorProps {

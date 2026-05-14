@@ -26,11 +26,18 @@ export interface SchemaDefinition {
   icon: string;              // Phosphor icon name
   color: string;             // hex color
   fields: FieldDefinition[];
+  presetRelations?: PresetRelation[];
   description?: string;
   filePath: string;          // path to the .md schema file
 }
 
 export type RelationKind = 'parentOf' | 'childOf' | 'siblingOf' | 'relatedTo';
+
+export interface PresetRelation {
+  label: string;       // e.g. "Book"
+  kind: RelationKind;  // e.g. "childOf"
+  targetType: string;  // locked entity type, e.g. "Book"
+}
 
 export interface EntityRelation {
   kind: RelationKind;

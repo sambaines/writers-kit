@@ -15,7 +15,7 @@ import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
 import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
 import styles from './PropertiesPanel.module.css';
-import type { FieldDefinition, RelationKind, CustomDate, CustomDateRange } from '../../types';
+import type { FieldDefinition, RelationKind, PresetRelation, CustomDate, CustomDateRange } from '../../types';
 
 function unique<T>(arr: T[]): T[] {
   return [...new Set(arr)];
@@ -595,6 +595,26 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
     { kind: 'relatedTo', label: 'Related to', key: '_relatedTo' },
   ];
 
+  const presetRelations: PresetRelation[] = schema?.presetRelations ?? [];
+
+  /** Find the currently selected entity ID for a preset relation slot. */
+  function getPresetValue(pr: PresetRelation): string {
+    if (!entity) return '';
+    const ids = (entity.frontmatter[`_${pr.kind}`] as string[] | undefined) ?? [];
+    return ids.find((id) => entities.find((e) => e.id === id)?.type === pr.targetType) ?? '';
+  }
+
+  function handlePresetChange(pr: PresetRelation, newId: string) {
+    if (!entity) return;
+    const oldId = getPresetValue(pr);
+    if (oldId === newId) return;
+    if (oldId) void removeRelation(entity.id, oldId, pr.kind);
+    if (newId) void addRelation(entity.id, newId, pr.kind);
+  }
+
+  // IDs already shown via preset slots — exclude from freeform groups to avoid duplicates
+  const presetCoveredIds = new Set(presetRelations.map(getPresetValue).filter(Boolean));
+
   const existingTargetIds = entity
     ? RELATION_GROUPS.flatMap(({ key }) =>
         (entity.frontmatter[key] as string[] | undefined) ?? [],
@@ -881,11 +901,76 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                   <span>Relations</span>
                 </button>
                 {relationsOpen && <div className={styles.relations}>
-                  {existingTargetIds.length === 0 && (
-                    <span className={styles.emptyHint}>No relations yet</span>
+                  {/* Preset (schema-level) relations — shown first */}
+                  {presetRelations.map((pr, i) => {
+                    const currentId = getPresetValue(pr);
+                    const candidates = entities.filter((e) => e.type === pr.targetType && !e.archived);
+                    const current = currentId ? entities.find((e) => e.id === currentId) : null;
+                    const cSchema = current ? schemas.find((s) => s.name === current.type) : null;
+                    const cIcon  = current?.icon ?? cSchema?.icon ?? 'File';
+                    const cColor = current?.color ?? cSchema?.color ?? 'var(--text-tertiary)';
+                    return (
+                      <div key={i} className={styles.presetRelGroup}>
+                        <div className={styles.presetRelLabel}>{pr.label}</div>
+                        <Select.Root
+                          value={currentId || '__none__'}
+                          onValueChange={(v) => handlePresetChange(pr, v === '__none__' ? '' : v)}
+                        >
+                          <Select.Trigger asChild>
+                            <button className={styles.presetRelTrigger}>
+                              {current ? (
+                                <>
+                                  <DynamicIcon name={cIcon} size={11} color={cColor} weight="duotone" />
+                                  <span className={styles.presetRelTriggerText}>{current.title}</span>
+                                </>
+                              ) : (
+                                <span className={styles.presetRelPlaceholder}>Select {pr.targetType}…</span>
+                              )}
+                              <CaretUpDown size={10} className={styles.presetRelCaret} />
+                            </button>
+                          </Select.Trigger>
+                          <Select.Portal>
+                            <Select.Content className={styles.presetRelContent} position="popper" sideOffset={4}>
+                              <Select.Viewport>
+                                <Select.Item value="__none__" className={styles.presetRelItem}>
+                                  <Select.ItemText>None</Select.ItemText>
+                                </Select.Item>
+                                {candidates.map((e) => {
+                                  const eSchema = schemas.find((s) => s.name === e.type);
+                                  const eIcon  = e.icon ?? eSchema?.icon ?? 'File';
+                                  const eColor = e.color ?? eSchema?.color ?? 'var(--text-tertiary)';
+                                  return (
+                                    <Select.Item key={e.id} value={e.id} className={styles.presetRelItem}>
+                                      <Select.ItemText>
+                                        <span className={styles.presetRelItemInner}>
+                                          <DynamicIcon name={eIcon} size={11} color={eColor} weight="duotone" />
+                                          {e.title}
+                                        </span>
+                                      </Select.ItemText>
+                                    </Select.Item>
+                                  );
+                                })}
+                              </Select.Viewport>
+                            </Select.Content>
+                          </Select.Portal>
+                        </Select.Root>
+                      </div>
+                    );
+                  })}
+
+                  {/* Divider if both preset and freeform relations exist */}
+                  {presetRelations.length > 0 && existingTargetIds.some((id) => !presetCoveredIds.has(id)) && (
+                    <div className={styles.relDivider} />
                   )}
+
+                  {/* Freeform relations (excluding preset-covered IDs) */}
+                  {existingTargetIds.filter((id) => !presetCoveredIds.has(id)).length === 0 &&
+                    presetRelations.length === 0 && (
+                      <span className={styles.emptyHint}>No relations yet</span>
+                    )}
                   {RELATION_GROUPS.map(({ kind, label, key }) => {
-                    const ids = (entity.frontmatter[key] as string[] | undefined) ?? [];
+                    const ids = ((entity.frontmatter[key] as string[] | undefined) ?? [])
+                      .filter((id) => !presetCoveredIds.has(id));
                     if (ids.length === 0) return null;
                     return (
                       <div key={kind} className={styles.relGroup}>

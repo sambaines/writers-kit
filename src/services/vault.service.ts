@@ -31,6 +31,84 @@ function formatTimestamp(secs: number | null | undefined): string {
   return new Date(secs * 1000).toISOString();
 }
 
+/* ─── Relation annotation ───────────────────────────────── */
+
+const RELATION_FM_KEYS = new Set(['_parentOf', '_childOf', '_siblingOf', '_relatedTo']);
+
+/**
+ * Post-processes a gray-matter-serialised YAML string to append `# Title`
+ * comments next to relation entity IDs.  YAML parsers strip comments on read,
+ * so downstream code never sees them — they are purely for human legibility.
+ */
+export function annotateRelationsInYaml(
+  content: string,
+  titleMap: Map<string, string>,
+  customRelationKeys: Set<string>,
+): string {
+  const allRelKeys = new Set([...RELATION_FM_KEYS, ...customRelationKeys]);
+  let fmDelimiters = 0;
+  let inFrontmatter = false;
+  let inRelKey = false;
+
+  return content
+    .split('\n')
+    .map((line) => {
+      if (line === '---') {
+        fmDelimiters++;
+        if (fmDelimiters === 1) inFrontmatter = true;
+        if (fmDelimiters === 2) { inFrontmatter = false; inRelKey = false; }
+        return line;
+      }
+      if (!inFrontmatter) return line;
+
+      // Detect a top-level YAML key (starts with word char or underscore)
+      const keyMatch = line.match(/^([\w][\w-]*):/);
+      if (keyMatch) {
+        inRelKey = allRelKeys.has(keyMatch[1]);
+        return line;
+      }
+
+      // Annotate list items inside relation keys
+      if (inRelKey) {
+        const itemMatch = line.match(/^(\s+-\s+)(\S+)\s*$/);
+        if (itemMatch) {
+          const title = titleMap.get(itemMatch[2]);
+          if (title) return `${itemMatch[1]}${title} [${itemMatch[2]}]`;
+        }
+      }
+
+      return line;
+    })
+    .join('\n');
+}
+
+/* ─── Relation normalisation (read side) ────────────────── */
+
+const RELATION_FM_NORM_KEYS = ['_parentOf', '_childOf', '_siblingOf', '_relatedTo'];
+
+/** Strip "Title [id]" annotations back to bare IDs for internal use. */
+function normalizeRelationId(value: string): string {
+  const match = /^.+\[(.+)\]\s*$/.exec(value);
+  return match ? match[1] : value;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeRelationFields(fm: Record<string, any>): void {
+  for (const key of RELATION_FM_NORM_KEYS) {
+    if (Array.isArray(fm[key])) {
+      fm[key] = (fm[key] as string[]).map(normalizeRelationId);
+    }
+  }
+  if (Array.isArray(fm.__customFields)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const field of fm.__customFields as any[]) {
+      if (field?.type === 'relation' && field?.key && Array.isArray(fm[field.key])) {
+        fm[field.key] = (fm[field.key] as string[]).map(normalizeRelationId);
+      }
+    }
+  }
+}
+
 /* ─── Schema parsing ────────────────────────────────────── */
 
 function parseSchema(
@@ -45,6 +123,7 @@ function parseSchema(
     icon: fm.icon ?? 'File',
     color: fm.color ?? '#8A8A96',
     fields: (fm.fields ?? []) as FieldDefinition[],
+    presetRelations: fm.presetRelations ?? [],
     description: fm.description,
     filePath: relativePath,
   };
@@ -59,6 +138,7 @@ function parseEntity(
   stat: { size: number; modified: number | null; created: number | null },
 ): Entity {
   const { data: fm, content: body } = matter(content);
+  normalizeRelationFields(fm);
   const id = basename(relativePath, '.md');
   const wordCount = countWords(body);
 
@@ -161,6 +241,7 @@ export async function saveSchema(
   };
   if (schema.description) fm.description = schema.description;
   if (schema.fields.length > 0) fm.fields = schema.fields;
+  if (schema.presetRelations && schema.presetRelations.length > 0) fm.presetRelations = schema.presetRelations;
   const content = matter.stringify('', fm);
   await writeTextFile(joinPath(vaultPath, schema.filePath), content);
 }
@@ -234,6 +315,7 @@ export async function updateEntityFrontmatter(
   vaultPath: string,
   entity: Entity,
   updates: Partial<EntityFrontmatter>,
+  titleMap?: Map<string, string>,
 ): Promise<Entity> {
   const now = new Date().toISOString();
   const merged = { ...entity.frontmatter, ...updates, __modified: now };
@@ -243,7 +325,19 @@ export async function updateEntityFrontmatter(
   const updatedFm = Object.fromEntries(
     Object.entries(merged).filter(([, v]) => v !== undefined),
   ) as EntityFrontmatter;
-  const content = matter.stringify(entity.body, updatedFm as Record<string, unknown>);
+  let content = matter.stringify(entity.body, updatedFm as Record<string, unknown>);
+  if (titleMap && titleMap.size > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const customRelationKeys = new Set<string>(
+      (Array.isArray(updatedFm.__customFields) ? updatedFm.__customFields : [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((f: any) => f?.type === 'relation')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((f: any) => f?.key as string)
+        .filter(Boolean),
+    );
+    content = annotateRelationsInYaml(content, titleMap, customRelationKeys);
+  }
   await writeTextFile(joinPath(vaultPath, entity.path), content);
   return {
     ...entity,

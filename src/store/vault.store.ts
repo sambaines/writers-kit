@@ -242,9 +242,10 @@ export const useVaultStore = create<VaultState>()(
       },
 
       patchEntityFrontmatter: async (entity, updates) => {
-        const { vaultPath, updateEntity } = get();
+        const { vaultPath, entities, updateEntity } = get();
         if (!vaultPath) throw new Error('No vault open');
-        const updated = await updateEntityFrontmatter(vaultPath, entity, updates);
+        const titleMap = new Map(entities.map((e) => [e.id, e.title]));
+        const updated = await updateEntityFrontmatter(vaultPath, entity, updates, titleMap);
         updateEntity(updated);
         return updated;
       },
@@ -274,9 +275,10 @@ export const useVaultStore = create<VaultState>()(
         const srcIds = unique([...((source.frontmatter[fwd] as string[]) ?? []), targetId]);
         const tgtIds = unique([...((target.frontmatter[inv] as string[]) ?? []), sourceId]);
 
+        const titleMap = new Map(entities.map((e) => [e.id, e.title]));
         const [updSrc, updTgt] = await Promise.all([
-          updateEntityFrontmatter(vaultPath, source, { [fwd]: srcIds }),
-          updateEntityFrontmatter(vaultPath, target, { [inv]: tgtIds }),
+          updateEntityFrontmatter(vaultPath, source, { [fwd]: srcIds }, titleMap),
+          updateEntityFrontmatter(vaultPath, target, { [inv]: tgtIds }, titleMap),
         ]);
         updateEntity(updSrc);
         updateEntity(updTgt);
@@ -306,9 +308,10 @@ export const useVaultStore = create<VaultState>()(
         const srcIds = ((source.frontmatter[fwd] as string[]) ?? []).filter((id) => id !== targetId);
         const tgtIds = ((target.frontmatter[inv] as string[]) ?? []).filter((id) => id !== sourceId);
 
+        const titleMap = new Map(entities.map((e) => [e.id, e.title]));
         const [updSrc, updTgt] = await Promise.all([
-          updateEntityFrontmatter(vaultPath, source, { [fwd]: srcIds }),
-          updateEntityFrontmatter(vaultPath, target, { [inv]: tgtIds }),
+          updateEntityFrontmatter(vaultPath, source, { [fwd]: srcIds }, titleMap),
+          updateEntityFrontmatter(vaultPath, target, { [inv]: tgtIds }, titleMap),
         ]);
         updateEntity(updSrc);
         updateEntity(updTgt);
