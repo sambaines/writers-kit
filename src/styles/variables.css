@@ -32,6 +32,11 @@
   --color-error:   #FF5370;
   --color-info:    #4A9EFF;
 
+  /* ─── Gradients ───────────────────────────────────────── */
+  --gradient-primary: linear-gradient(90deg, #06C5E5 0%, #45BFFF 14.29%, #8FB1FF 28.57%, #D29DFF 42.86%, #FF86E3 57.14%, #FF78AB 71.43%, #FF816C 85.71%, #FF9A2C 100%);
+  --gradient-disabled: linear-gradient(0deg, rgba(30, 32, 32, 0.08) 0%, rgba(40, 42, 42, 0.00) 100%);
+  --gradient-dark-secondary: linear-gradient(0deg, rgba(30, 32, 32, 0.16) 0%, rgba(40, 42, 42, 0.00) 100%);
+
   /* ─── Typography ─────────────────────────────────────── */
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;

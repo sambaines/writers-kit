@@ -1,0 +1,96 @@
+/* ─── Track ───────────────────────────────────────────────── */
+
+.track {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  width: 28px;
+  height: 16px;
+  border-radius: 16px;
+  padding: 2px;
+  border: 1px solid #282a2a;
+  box-shadow: inset 0 0 0 1px #0f1010;
+  background: #151717;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* Remove default button chrome */
+.track:focus {
+  outline: none;
+}
+
+/* ─── On state ────────────────────────────────────────────── */
+
+.track[data-state='checked'] {
+  background: var(--gradient-primary);
+  border-color: transparent;
+}
+
+/* ─── Focus ring — gradient outline outside the track ──────── */
+
+.track:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  background: var(--gradient-primary);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ─── Disabled ─────────────────────────────────────────────── */
+
+.track[data-disabled] {
+  cursor: default;
+}
+
+/* Disabled off */
+.track[data-disabled][data-state='unchecked'] {
+  background: #5d6060;
+  border-color: #5d6060;
+  box-shadow: inset 0 0 0 1px #474949;
+}
+
+/* Disabled on — dark base with muted gradient overlay */
+.track[data-disabled][data-state='checked'] {
+  background: #151717;
+  border-color: #5d6060;
+  box-shadow: inset 0 0 0 1px #474949;
+}
+
+.track[data-disabled][data-state='checked']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: var(--gradient-primary);
+  opacity: 0.56;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Handle ───────────────────────────────────────────────── */
+
+.handle {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fbf5f3;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.15s ease, background 0.15s ease;
+  will-change: transform;
+}
+
+.track[data-state='checked'] .handle {
+  transform: translateX(12px);
+}
+
+.track[data-disabled] .handle {
+  background: #3c3f3f;
+}
