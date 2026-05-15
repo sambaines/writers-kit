@@ -24,6 +24,9 @@ export default function Switch({ checked, onCheckedChange, disabled, id, 'aria-l
       onBlur={() => setFocused(false)}
       data-focused={focused || undefined}
     >
+      <div className={styles.trackInnerRing} />
+      <div className={styles.trackInnerGradient} />
+      <div className={styles.trackInnerBackground} />
       <RadixSwitch.Thumb className={styles.handle} />
     </RadixSwitch.Root>
   );
