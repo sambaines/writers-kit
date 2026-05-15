@@ -685,17 +685,6 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
 
       <ScrollArea.Root className={styles.scrollRoot}>
         <ScrollArea.Viewport className={styles.scrollViewport}>
-          {import.meta.env.DEV && (
-            <div className={styles.devSwitchTest}>
-              <span className={styles.devSwitchTestLabel}>Switch states</span>
-              <div className={styles.devSwitchTestRow}>
-                <Switch checked={false} onCheckedChange={() => {}} aria-label="Off" />
-                <Switch checked={true} onCheckedChange={() => {}} aria-label="On" />
-                <Switch checked={false} onCheckedChange={() => {}} disabled aria-label="Disabled off" />
-                <Switch checked={true} onCheckedChange={() => {}} disabled aria-label="Disabled on" />
-              </div>
-            </div>
-          )}
           {entity ? (
             <>
               {/* Properties: type + schema-defined fields */}
