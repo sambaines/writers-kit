@@ -12,6 +12,8 @@ import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import Switch from '../ui/Switch';
+import Input from '../ui/Input';
+import TextArea from '../ui/TextArea';
 import IconWrapper from '../ui/IconWrapper';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
@@ -685,6 +687,19 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
         </button>
       </div>
 
+
+      {/* DEV: Input test — remove when done */}
+      <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px', borderBottom: '1px solid var(--border-subtle)' }}>
+        <Input placeholder="Default text input" />
+        <Input placeholder="Number input" type="number" />
+        <Input placeholder="With leading icon" leadingIcon={<Hash size={12} />} />
+        <Input placeholder="Error state" error />
+        <Input placeholder="Disabled" disabled />
+        <Input value="Active (has value)" placeholder="Active" onChange={() => {}} />
+        <TextArea placeholder="Default textarea" />
+        <TextArea placeholder="Error textarea" error />
+        <TextArea placeholder="Disabled textarea" disabled />
+      </div>
 
       <ScrollArea.Root className={styles.scrollRoot}>
         <ScrollArea.Viewport className={styles.scrollViewport}>

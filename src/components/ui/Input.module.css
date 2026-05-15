@@ -1,0 +1,156 @@
+/* ─── Root (offset-border layer) ────────────────────────────── */
+
+.root {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--color-grey-850);
+  flex-shrink: 0;
+}
+
+/* ─── Inner ring layer ──────────────────────────────────────── */
+
+.innerRing {
+  position: absolute;
+  inset: 1px;
+  border-radius: 5px;
+  background: #0f1010;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Content layer ─────────────────────────────────────────── */
+
+.content {
+  position: absolute;
+  inset: 2px;
+  border-radius: 4px;
+  background: var(--gradient-dark-secondary), var(--color-grey-925);
+  border-top: solid 0.5px rgba(255,255,255,0.02);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.root[data-has-leading] .content {
+  padding-left: 4px;
+}
+
+.root[data-has-trailing] .content {
+  padding-right: 4px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* ─── Input ─────────────────────────────────────────────────── */
+
+.input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-paperwhite-50);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.25px;
+  cursor: text;
+}
+
+.input::placeholder {
+  color: var(--color-grey-300);
+}
+
+/* ─── Icon slots ────────────────────────────────────────────── */
+
+.iconSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-grey-300);
+  line-height: 0;
+  transition: color 0.1s ease;
+}
+
+.root:focus-within .iconSlot,
+.root:has(input:not(:placeholder-shown)) .iconSlot {
+  color: var(--color-paperwhite-50);
+}
+
+/* ─── Number steppers ───────────────────────────────────────── */
+
+.steppers {
+  display: inline-flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 16px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-grey-300);
+  height: 8px;
+  width: 12px;
+  line-height: 0;
+}
+
+.stepper:hover {
+  color: var(--color-paperwhite-50);
+}
+
+.stepper:disabled {
+  color: var(--color-grey-750);
+  cursor: not-allowed;
+}
+
+
+
+/* ─── States ────────────────────────────────────────────────── */
+
+/* Focused */
+.root:focus-within > .innerRing {
+  background: var(--gradient-primary);
+}
+
+/* Active — has a value */
+.root:has(input:not(:placeholder-shown)) {
+  background: #333636;
+}
+
+/* Error */
+.root[data-error] .innerRing {
+  background: var(--color-status-error-400);
+}
+
+/* Disabled */
+.root[data-disabled] {
+  background: var(--color-grey-600);
+  cursor: not-allowed;
+}
+.root[data-disabled] .innerRing {
+  background: var(--color-grey-700);
+}
+.root[data-disabled] .content {
+  background: var(--color-grey-600);
+}
+.root[data-disabled] .input {
+  color: var(--color-grey-750);
+  cursor: not-allowed;
+}
+.root[data-disabled] .input::placeholder {
+  color: var(--color-grey-750);
+}
+.root[data-disabled] .iconSlot {
+  color: var(--color-grey-750);
+}

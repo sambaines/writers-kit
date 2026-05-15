@@ -1,0 +1,96 @@
+/* ─── Root (offset-border layer) ────────────────────────────── */
+/* Uses padding: 2px instead of absolute positioning so the root
+   grows with textarea content while still layering correctly.   */
+
+.root {
+  position: relative;
+  width: 100%;
+  border-radius: 6px;
+  background: var(--color-grey-850);
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+/* ─── Inner ring layer ──────────────────────────────────────── */
+
+.innerRing {
+  position: absolute;
+  inset: 1px;
+  border-radius: 5px;
+  background: #0f1010;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Content layer ─────────────────────────────────────────── */
+
+.content {
+  position: relative;
+  z-index: 1;
+  border-radius: 4px;
+  background: var(--gradient-dark-secondary), var(--color-grey-925);
+  border-top: solid 0.5px rgba(255, 255, 255, 0.02);
+}
+
+/* ─── Textarea ──────────────────────────────────────────────── */
+
+.textarea {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--color-paperwhite-50);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.25px;
+  /* Figma FieldLayout padding: 4px top, 8px sides, 2px bottom */
+  padding: 4px 8px 2px 8px;
+  cursor: text;
+}
+
+.textarea::placeholder {
+  color: var(--color-grey-300);
+}
+
+/* ─── States ────────────────────────────────────────────────── */
+
+/* Focused */
+.root:focus-within > .innerRing {
+  background: var(--gradient-primary);
+}
+
+/* Active — has a value */
+.root:has(textarea:not(:placeholder-shown)) {
+  background: #333636;
+}
+.root:focus-within:has(textarea:not(:placeholder-shown)) {
+  background: var(--color-grey-850);
+}
+
+/* Error */
+.root[data-error] .innerRing {
+  background: var(--color-status-error-400);
+}
+
+/* Disabled */
+.root[data-disabled] {
+  background: var(--color-grey-600);
+  pointer-events: none;
+}
+.root[data-disabled] .innerRing {
+  background: var(--color-grey-700);
+}
+.root[data-disabled] .content {
+  background: var(--color-grey-600);
+}
+.root[data-disabled] .textarea {
+  color: var(--color-grey-750);
+  cursor: not-allowed;
+}
+.root[data-disabled] .textarea::placeholder {
+  color: var(--color-grey-750);
+}
