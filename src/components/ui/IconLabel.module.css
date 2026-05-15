@@ -1,0 +1,14 @@
+/* IconCopy pattern — icon wrapper + text label, 2px gap, center aligned */
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-normal);
+  color: inherit;
+  white-space: nowrap;
+  line-height: 1;
+}

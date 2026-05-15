@@ -12,6 +12,7 @@ import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import Switch from '../ui/Switch';
+import IconWrapper from '../ui/IconWrapper';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
 import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
@@ -55,14 +56,16 @@ function formatFileSize(bytes: number): string {
 
 function FieldIcon({ type }: { type: string }) {
   const size = 12;
+  let icon;
   switch (type) {
     case 'date':
     case 'custom-date':
-    case 'custom-date-range': return <Calendar size={size} />;
-    case 'tags':    return <Tag size={size} />;
-    case 'number':  return <Hash size={size} />;
-    default:        return <TextT size={size} />;
+    case 'custom-date-range': icon = <Calendar size={size} />; break;
+    case 'tags':    icon = <Tag size={size} />; break;
+    case 'number':  icon = <Hash size={size} />; break;
+    default:        icon = <TextT size={size} />;
   }
+  return <IconWrapper>{icon}</IconWrapper>;
 }
 
 // ─── Tag input ────────────────────────────────────────────

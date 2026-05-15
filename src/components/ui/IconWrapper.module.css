@@ -1,0 +1,11 @@
+/* 16×16 icon container — centers a 12px Phosphor icon with 2px padding each side */
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  color: inherit;
+}
