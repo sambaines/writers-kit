@@ -1,0 +1,29 @@
+/* Matches Figma Header component (9:308) — 280×40, padding 8/8/8/16, gap 8 */
+.root {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
+  height: 40px;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Trailing icon button group — gap: 2px between buttons */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}

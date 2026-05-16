@@ -1,0 +1,25 @@
+/* 24×24 icon button — matches Icon-16-24w interactive pattern */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn:active {
+  background: var(--bg-active);
+}

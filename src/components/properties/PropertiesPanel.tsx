@@ -13,6 +13,7 @@ import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import Switch from '../ui/Switch';
 import IconWrapper from '../ui/IconWrapper';
+import PanelHeader from '../ui/PanelHeader';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
 import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
@@ -671,19 +672,10 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
 
   return (
     <div className={styles.panel}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.headerMeta}>
-          <span className={styles.headerTitle}>Metadata</span>
-        </div>
-        <button
-          className={styles.closeBtn}
-          onClick={() => setPropertiesPanelOpen(false)}
-          aria-label="Close properties"
-        >
-          <X size={14} />
-        </button>
-      </div>
+      <PanelHeader
+        title="Metadata"
+        onClose={() => setPropertiesPanelOpen(false)}
+      />
 
 
 
