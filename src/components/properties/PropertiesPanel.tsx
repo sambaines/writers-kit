@@ -5,7 +5,7 @@ import {
   X, Hash, Calendar, Tag, TextT,
   ArrowUpRight, Plus, ArrowsOut,
   FileText, Clock, PencilLine, Eye, CaretUpDown, Shapes,
-  CaretDown, CaretRight,
+  CaretDown,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -14,6 +14,7 @@ import DynamicIcon from '../ui/DynamicIcon';
 import Switch from '../ui/Switch';
 import IconWrapper from '../ui/IconWrapper';
 import PanelHeader from '../ui/PanelHeader';
+import SubHeader from '../ui/SubHeader';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
 import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
@@ -685,10 +686,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
             <>
               {/* Properties: type + schema-defined fields */}
               <section className={styles.section}>
-                <button className={styles.sectionToggle} onClick={() => toggleSection('pp-props', setPropsOpen)}>
-                  {propsOpen ? <CaretDown size={10} /> : <CaretRight size={10} />}
-                  <span>Properties</span>
-                </button>
+                <SubHeader title="Properties" open={propsOpen} onToggle={() => toggleSection('pp-props', setPropsOpen)} />
                 {propsOpen && <div className={styles.fields}>
                   {/* Type row */}
                   <div className={styles.field}>
@@ -889,10 +887,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
 
               {/* Relations */}
               <section className={styles.section}>
-                <button className={styles.sectionToggle} onClick={() => toggleSection('pp-relations', setRelationsOpen)}>
-                  {relationsOpen ? <CaretDown size={10} /> : <CaretRight size={10} />}
-                  <span>Relations</span>
-                </button>
+                <SubHeader title="Relations" open={relationsOpen} onToggle={() => toggleSection('pp-relations', setRelationsOpen)} />
                 {relationsOpen && <div className={styles.relations}>
                   {/* Preset (schema-level) relations — shown first */}
                   {presetRelations.map((pr, i) => {
@@ -1006,10 +1001,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
 
               {/* Stats */}
               <section className={styles.section}>
-                <button className={styles.sectionToggle} onClick={() => toggleSection('pp-stats', setStatsOpen)}>
-                  {statsOpen ? <CaretDown size={10} /> : <CaretRight size={10} />}
-                  <span>Stats</span>
-                </button>
+                <SubHeader title="Stats" open={statsOpen} onToggle={() => toggleSection('pp-stats', setStatsOpen)} />
                 {statsOpen && <div className={styles.stats}>
                   <div className={styles.statRow}>
                     <span className={styles.statLabel}><TextT size={12} /> Words</span>

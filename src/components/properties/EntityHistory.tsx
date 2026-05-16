@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { GitBranch, CaretDown, CaretRight } from '@phosphor-icons/react';
+import { GitBranch } from '@phosphor-icons/react';
+import SubHeader from '../ui/SubHeader';
 import { useGitStore } from '../../store/git.store';
 import type { GitCommit } from '../../types';
 import styles from './EntityHistory.module.css';
@@ -31,11 +32,12 @@ export default function EntityHistory({ entityPath }: Props) {
 
   return (
     <section className={styles.section}>
-      <button className={styles.toggle} onClick={() => setOpen((o) => !o)}>
-        {open ? <CaretDown size={10} /> : <CaretRight size={10} />}
-        <GitBranch size={12} />
-        <span>History</span>
-      </button>
+      <SubHeader
+        title="History"
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+        action={<GitBranch size={12} />}
+      />
 
       {open && (
         <div className={styles.list}>
