@@ -9,3 +9,15 @@
   flex-shrink: 0;
   color: inherit;
 }
+
+/* 24×24 icon container — centers a 16px Phosphor icon with 4px padding each side */
+.wrapper24 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  color: inherit;
+}
