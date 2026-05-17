@@ -2,9 +2,9 @@ import React, { useState, useRef, useMemo } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Select from '@radix-ui/react-select';
 import {
-  X, Hash, Calendar, Tag, TextT,
+  X, Hash, HashStraight, Calendar, CalendarDots, CalendarX, Tag, Textbox, ToggleLeft, CirclesFour,
   ArrowUpRight, Plus, ArrowsOut,
-  FileText, Clock, PencilLine, Eye, CaretUpDown, Shapes,
+  FileText, Clock, PencilLine, Eye, CaretUpDown,
   CaretDown,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
@@ -12,9 +12,11 @@ import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import Switch from '../ui/Switch';
-import IconWrapper from '../ui/IconWrapper';
+import Input from '../ui/Input';
+import TextArea from '../ui/TextArea';
 import PanelHeader from '../ui/PanelHeader';
 import SubHeader from '../ui/SubHeader';
+import PropertyRow from '../ui/PropertyRow';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
 import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
@@ -56,18 +58,19 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function FieldIcon({ type }: { type: string }) {
+function getFieldIcon(type: string): React.ReactNode {
   const size = 12;
-  let icon;
   switch (type) {
-    case 'date':
-    case 'custom-date':
-    case 'custom-date-range': icon = <Calendar size={size} />; break;
-    case 'tags':    icon = <Tag size={size} />; break;
-    case 'number':  icon = <Hash size={size} />; break;
-    default:        icon = <TextT size={size} />;
+    case 'date':              return <Calendar size={size} />;
+    case 'custom-date':       return <CalendarX size={size} />;
+    case 'custom-date-range': return <CalendarDots size={size} />;
+    case 'tags':              return <Tag size={size} />;
+    case 'number':            return <HashStraight size={size} />;
+    case 'boolean':           return <ToggleLeft size={size} />;
+    case 'select':            return <CirclesFour size={size} />;
+    case 'textarea':          return <Textbox size={size} />;
+    default:                  return <Textbox size={size} />;
   }
-  return <IconWrapper>{icon}</IconWrapper>;
 }
 
 // ─── Tag input ────────────────────────────────────────────
@@ -463,10 +466,9 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [] }: Field
 
   if (field.type === 'textarea') {
     return (
-      <textarea
-        className={styles.fieldTextarea}
+      <TextArea
         value={localVal}
-        placeholder="—"
+        placeholder="Add text..."
         onChange={(e) => schedule(e.target.value)}
         rows={3}
       />
@@ -475,11 +477,9 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [] }: Field
 
   if (field.type === 'number') {
     return (
-      <input
+      <Input
         type="number"
-        className={styles.fieldInput}
         value={localVal}
-        placeholder="—"
         onChange={(e) => schedule(e.target.value)}
       />
     );
@@ -519,11 +519,9 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [] }: Field
 
   // text, date, select → text input
   return (
-    <input
-      type="text"
-      className={styles.fieldInput}
+    <Input
       value={localVal}
-      placeholder="—"
+      placeholder="Add text..."
       onChange={(e) => schedule(e.target.value)}
     />
   );
@@ -689,66 +687,58 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                 <SubHeader title="Properties" open={propsOpen} onToggle={() => toggleSection('pp-props', setPropsOpen)} />
                 {propsOpen && <div className={styles.fields}>
                   {/* Type row */}
-                  <div className={styles.field}>
-                    <div className={styles.fieldLabel}>
-                      <Shapes size={12} />
-                      <span>Type</span>
-                    </div>
-                    <div className={styles.fieldValueWrap}>
-                      <Select.Root
-                        value={entity.type}
-                        onValueChange={(newType) => void patchEntityFrontmatter(entity, { __type: newType })}
-                      >
+                  <PropertyRow icon={<CirclesFour size={12} />} label="Type">
+                    <Select.Root
+                      value={entity.type}
+                      onValueChange={(newType) => void patchEntityFrontmatter(entity, { __type: newType })}
+                    >
+                      <div className={styles.typeSelectRoot}>
+                        <div className={styles.typeSelectRing} />
                         <Select.Trigger asChild>
                           <button className={styles.typeSelectInline}>
-                            {schema && <DynamicIcon name={schema.icon} size={11} color={schema.color} />}
-                            <span style={{ color: schema?.color ?? 'var(--text-tertiary)' }}>{entity.type}</span>
-                            <CaretUpDown size={10} className={styles.typeSelectCaret} />
+                            {schema && <DynamicIcon name={schema.icon} size={12} color={schema.color} />}
+                            <span className={styles.typeSelectText} style={{ color: schema?.color ?? 'var(--color-paperwhite-50)' }}>{entity.type}</span>
+                            <CaretUpDown size={12} className={styles.typeSelectCaret} />
                           </button>
                         </Select.Trigger>
-                        <Select.Portal>
-                          <Select.Content className={styles.typeSelectContent} position="popper" sideOffset={4}>
-                            <Select.Viewport>
-                              {schemas.map((s) => (
-                                <Select.Item key={s.id} value={s.name} className={styles.typeSelectItem}>
-                                  <Select.ItemText>
-                                    <span className={styles.typeSelectItemInner}>
-                                      <DynamicIcon name={s.icon} size={12} color={s.color} />
-                                      <span>{s.name}</span>
-                                    </span>
-                                  </Select.ItemText>
-                                </Select.Item>
-                              ))}
-                            </Select.Viewport>
-                          </Select.Content>
-                        </Select.Portal>
-                      </Select.Root>
-                    </div>
-                  </div>
+                      </div>
+                      <Select.Portal>
+                        <Select.Content className={styles.typeSelectContent} position="popper" sideOffset={4}>
+                          <Select.Viewport>
+                            {schemas.map((s) => (
+                              <Select.Item key={s.id} value={s.name} className={styles.typeSelectItem}>
+                                <Select.ItemText>
+                                  <span className={styles.typeSelectItemInner}>
+                                    <DynamicIcon name={s.icon} size={12} color={s.color} />
+                                    <span>{s.name}</span>
+                                  </span>
+                                </Select.ItemText>
+                              </Select.Item>
+                            ))}
+                          </Select.Viewport>
+                        </Select.Content>
+                      </Select.Portal>
+                    </Select.Root>
+                  </PropertyRow>
                   {/* Schema fields */}
                   {userFields.map((field) => {
                     const isTag = field.type === 'tags';
+                    const isMultiline = field.type === 'textarea' || isTag;
                     const tagList = isTag ? parseTags(field.value) : [];
                     return (
-                      <div
+                      <PropertyRow
                         key={`${entity.id}-${field.key}`}
-                        className={isTag ? styles.fieldTag : styles.field}
+                        icon={getFieldIcon(field.type)}
+                        label={field.label}
+                        multiline={isMultiline}
                       >
-                        <div className={styles.fieldLabel}>
-                          <FieldIcon type={field.type} />
-                          <span>{field.label}</span>
-                        </div>
-                        <div className={styles.fieldValueWrap}>
-                          <FieldInput
-                            field={field}
-                            value={field.value}
-                            onSave={handleFieldSave}
-                            entities={entities}
-                            schemas={schemas}
-
-
-                          />
-                        </div>
+                        <FieldInput
+                          field={field}
+                          value={field.value}
+                          onSave={handleFieldSave}
+                          entities={entities}
+                          schemas={schemas}
+                        />
                         {isTag && tagList.length > 0 && (
                           <div className={styles.tagPillsRow}>
                             {tagList.map((tag) => (
@@ -764,42 +754,30 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                             ))}
                           </div>
                         )}
-                      </div>
+                      </PropertyRow>
                     );
                   })}
                   {/* Custom per-entity fields */}
                   {customFields.map((cf) => {
                     const isTag = cf.type === 'tags';
+                    const isMultiline = cf.type === 'textarea' || isTag;
                     const cfValue = entity.frontmatter[cf.key];
                     const tagList = isTag ? parseTags(cfValue) : [];
                     return (
-                      <div
+                      <PropertyRow
                         key={`${entity.id}-custom-${cf.key}`}
-                        className={isTag ? styles.fieldTag : styles.field}
+                        icon={getFieldIcon(cf.type)}
+                        label={cf.label}
+                        multiline={isMultiline}
+                        onDelete={() => handleRemoveCustomProp(cf.key)}
                       >
-                        <div className={styles.fieldLabel}>
-                          <FieldIcon type={cf.type} />
-                          <span>{cf.label}</span>
-                        </div>
-                        <div className={styles.fieldValueWrap}>
-                          <FieldInput
-                            field={cf as FieldDefinition}
-                            value={cfValue}
-                            onSave={handleFieldSave}
-                            entities={entities}
-                            schemas={schemas}
-
-
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.removePropBtn}
-                          onClick={() => handleRemoveCustomProp(cf.key)}
-                          aria-label={`Remove ${cf.label}`}
-                        >
-                          <X size={10} />
-                        </button>
+                        <FieldInput
+                          field={cf as FieldDefinition}
+                          value={cfValue}
+                          onSave={handleFieldSave}
+                          entities={entities}
+                          schemas={schemas}
+                        />
                         {isTag && tagList.length > 0 && (
                           <div className={styles.tagPillsRow}>
                             {tagList.map((tag) => (
@@ -815,7 +793,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                             ))}
                           </div>
                         )}
-                      </div>
+                      </PropertyRow>
                     );
                   })}
                   {/* Add property form */}
