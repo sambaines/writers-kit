@@ -3,7 +3,7 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Select from '@radix-ui/react-select';
 import {
   X, Hash, HashStraight, Calendar, CalendarDots, CalendarX, Tag, Textbox, ToggleLeft, CirclesFour,
-  ArrowUpRight, Plus, ArrowsOut,
+  ArrowUpRight, Plus, ArrowsOut, TextT,
   FileText, Clock, PencilLine, Eye, CaretUpDown,
   CaretDown,
 } from '@phosphor-icons/react';
