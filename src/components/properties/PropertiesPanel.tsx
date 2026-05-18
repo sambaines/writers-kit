@@ -676,9 +676,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
         onClose={() => setPropertiesPanelOpen(false)}
       />
 
-
-
-      <ScrollArea.Root className={styles.scrollRoot}>
+<ScrollArea.Root className={styles.scrollRoot}>
         <ScrollArea.Viewport className={styles.scrollViewport}>
           {entity ? (
             <>
