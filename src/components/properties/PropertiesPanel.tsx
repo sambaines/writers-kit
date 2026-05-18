@@ -2,10 +2,9 @@ import React, { useState, useRef, useMemo } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Select from '@radix-ui/react-select';
 import {
-  X, Hash, HashStraight, Calendar, CalendarDots, CalendarX, Tag, Textbox, ToggleLeft, CirclesFour,
-  ArrowUpRight, Plus, ArrowsOut, TextT,
-  FileText, Clock, PencilLine, Eye, CaretUpDown,
-  CaretDown,
+  X, HashStraight, Calendar, CalendarDots, CalendarX, Tag, Textbox, ToggleLeft, CirclesFour,
+  ArrowUpRight, Plus, BookOpenText, HardDrives, Books, Clock, ClockUser,
+  FileText, CaretUpDown, CaretDown,
 } from '@phosphor-icons/react';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
@@ -17,6 +16,7 @@ import TextArea from '../ui/TextArea';
 import PanelHeader from '../ui/PanelHeader';
 import SubHeader from '../ui/SubHeader';
 import PropertyRow from '../ui/PropertyRow';
+import StatRow from '../ui/StatRow';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
 import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
@@ -978,34 +978,15 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
               {/* Stats */}
               <section className={styles.section}>
                 <SubHeader title="Stats" open={statsOpen} onToggle={() => toggleSection('pp-stats', setStatsOpen)} />
-                {statsOpen && <div className={styles.stats}>
-                  <div className={styles.statRow}>
-                    <span className={styles.statLabel}><TextT size={12} /> Words</span>
-                    <span className={styles.statValue}>{entity.wordCount.toLocaleString()}</span>
+                {statsOpen && (
+                  <div className={styles.stats}>
+                    <StatRow icon={<BookOpenText size={12} />} label="Words" value={entity.wordCount.toLocaleString()} />
+                    <StatRow icon={<HardDrives size={12} />} label="File Size" value={formatFileSize(entity.fileSize)} />
+                    <StatRow icon={<Books size={12} />} label="Read Time" value={`~${Math.max(1, Math.round(entity.wordCount / 200))} mins`} />
+                    <StatRow icon={<Clock size={12} />} label="Created at" value={formatDate(entity.createdAt)} />
+                    <StatRow icon={<ClockUser size={12} />} label="Modified at" value={relativeTime(entity.modifiedAt)} />
                   </div>
-                  <div className={styles.statRow}>
-                    <span className={styles.statLabel}><Hash size={12} /> Characters</span>
-                    <span className={styles.statValue}>{entity.charCount.toLocaleString()}</span>
-                  </div>
-                  <div className={styles.statRow}>
-                    <span className={styles.statLabel}><ArrowsOut size={12} /> File size</span>
-                    <span className={styles.statValue}>{formatFileSize(entity.fileSize)}</span>
-                  </div>
-                  <div className={styles.statRow}>
-                    <span className={styles.statLabel}><Eye size={12} /> Read time</span>
-                    <span className={styles.statValue}>
-                      ~{Math.max(1, Math.round(entity.wordCount / 200))} min
-                    </span>
-                  </div>
-                  <div className={styles.statRow}>
-                    <span className={styles.statLabel}><PencilLine size={12} /> Created</span>
-                    <span className={styles.statValue}>{formatDate(entity.createdAt)}</span>
-                  </div>
-                  <div className={styles.statRow}>
-                    <span className={styles.statLabel}><Clock size={12} /> Modified</span>
-                    <span className={styles.statValue}>{relativeTime(entity.modifiedAt)}</span>
-                  </div>
-                </div>}
+                )}
               </section>
 
               <EntityHistory entityPath={entity.path} />
