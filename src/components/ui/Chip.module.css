@@ -1,0 +1,74 @@
+/* ─── Root ───────────────────────────────────────────────── */
+
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background-color: var(--color-grey-850);
+  color: var(--color-paperwhite-50);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ─── Hover overlay — works on any background color ─────── */
+
+.root::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  pointer-events: none;
+  transition: background var(--transition-fast);
+}
+
+.root:hover::after {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Leading icon ───────────────────────────────────────── */
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: currentColor;
+  line-height: 0;
+}
+
+/* ─── Label ──────────────────────────────────────────────── */
+
+.label {
+  font-size: 12px;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+  line-height: 16px;
+  color: currentColor;
+}
+
+/* ─── Remove button ──────────────────────────────────────── */
+
+.remove {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: -1px;
+  cursor: pointer;
+  color: currentColor;
+  opacity: 0.5;
+  line-height: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.remove:hover {
+  opacity: 1;
+}
