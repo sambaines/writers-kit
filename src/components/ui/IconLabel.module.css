@@ -3,12 +3,16 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
 }
 
 .label {
-  font-size: var(--text-base);
-  font-weight: var(--weight-normal);
+  font-size: inherit;
+  font-weight: inherit;
   color: inherit;
   white-space: nowrap;
-  line-height: 1;
+  line-height: inherit;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

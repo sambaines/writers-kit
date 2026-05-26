@@ -1,4 +1,6 @@
 import { X } from '@phosphor-icons/react';
+import IconLabel from './IconLabel';
+import IconWrapper from './IconWrapper';
 import styles from './Chip.module.css';
 
 interface ChipProps {
@@ -23,11 +25,12 @@ export default function Chip({
       className={`${styles.root}${className ? ` ${className}` : ''}`}
       style={{ color, backgroundColor }}
     >
-      {leadingIcon && <span className={styles.icon}>{leadingIcon}</span>}
-      <span className={styles.label}>{label}</span>
+      <IconLabel icon={leadingIcon} label={label} className={styles.iconLabel} />
       {onRemove && (
         <button className={styles.remove} onClick={onRemove} type="button">
-          <X size={10} weight="bold" />
+          <IconWrapper size={16}>
+            <X size={12} weight="bold" />
+          </IconWrapper>
         </button>
       )}
     </span>

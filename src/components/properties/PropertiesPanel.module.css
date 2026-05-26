@@ -653,11 +653,10 @@
 }
 
 .tagPillsRow {
-  grid-area: pills;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 4px 2px 2px;
+  padding: 4px 0;
 }
 
 /* ─── Tag input ─────────────────────────────────────────── */
@@ -738,49 +737,6 @@
   color: var(--text-primary);
 }
 
-.tagPills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 2px 4px 2px 2px;
-}
-
-.tagPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 6px 2px 5px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  line-height: 1;
-}
-
-.tagHash {
-  color: var(--text-tertiary);
-  font-size: 10px;
-}
-
-.tagPillRemove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  padding: 0;
-  margin-left: 1px;
-  opacity: 0.6;
-  transition: opacity 0.1s, color 0.1s;
-}
-
-.tagPillRemove:hover {
-  opacity: 1;
-  color: var(--color-error);
-}
 
 /* ─── Custom property delete button ─────────────────────── */
 .removePropBtn {

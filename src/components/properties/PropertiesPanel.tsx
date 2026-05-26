@@ -10,6 +10,7 @@ import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
+import Chip from '../ui/Chip';
 import Switch from '../ui/Switch';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
@@ -729,6 +730,18 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                         icon={getFieldIcon(field.type)}
                         label={field.label}
                         multiline={isMultiline}
+                        footer={isTag && tagList.length > 0 ? (
+                          <div className={styles.tagPillsRow}>
+                            {tagList.map((tag) => (
+                              <Chip
+                                key={tag}
+                                label={tag}
+                                leadingIcon={<Tag size={12} />}
+                                onRemove={() => handleFieldSave(field.key, tagList.filter((t) => t !== tag))}
+                              />
+                            ))}
+                          </div>
+                        ) : undefined}
                       >
                         <FieldInput
                           field={field}
@@ -737,21 +750,6 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                           entities={entities}
                           schemas={schemas}
                         />
-                        {isTag && tagList.length > 0 && (
-                          <div className={styles.tagPillsRow}>
-                            {tagList.map((tag) => (
-                              <span key={tag} className={styles.tagPill}>
-                                <span className={styles.tagHash}>#</span>{tag}
-                                <button
-                                  type="button"
-                                  className={styles.tagPillRemove}
-                                  onMouseDown={(e) => { e.preventDefault(); handleFieldSave(field.key, tagList.filter((t) => t !== tag)); }}
-                                  aria-label={`Remove ${tag}`}
-                                ><X size={9} /></button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </PropertyRow>
                     );
                   })}
@@ -768,6 +766,18 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                         label={cf.label}
                         multiline={isMultiline}
                         onDelete={() => handleRemoveCustomProp(cf.key)}
+                        footer={isTag && tagList.length > 0 ? (
+                          <div className={styles.tagPillsRow}>
+                            {tagList.map((tag) => (
+                              <Chip
+                                key={tag}
+                                label={tag}
+                                leadingIcon={<Tag size={12} />}
+                                onRemove={() => handleFieldSave(cf.key, tagList.filter((t) => t !== tag))}
+                              />
+                            ))}
+                          </div>
+                        ) : undefined}
                       >
                         <FieldInput
                           field={cf as FieldDefinition}
@@ -776,21 +786,6 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                           entities={entities}
                           schemas={schemas}
                         />
-                        {isTag && tagList.length > 0 && (
-                          <div className={styles.tagPillsRow}>
-                            {tagList.map((tag) => (
-                              <span key={tag} className={styles.tagPill}>
-                                <span className={styles.tagHash}>#</span>{tag}
-                                <button
-                                  type="button"
-                                  className={styles.tagPillRemove}
-                                  onMouseDown={(e) => { e.preventDefault(); handleFieldSave(cf.key, tagList.filter((t) => t !== tag)); }}
-                                  aria-label={`Remove ${tag}`}
-                                ><X size={9} /></button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </PropertyRow>
                     );
                   })}

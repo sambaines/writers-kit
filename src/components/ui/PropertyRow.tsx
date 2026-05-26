@@ -6,31 +6,35 @@ interface PropertyRowProps {
   icon: React.ReactNode;
   label: string;
   children: React.ReactNode;
+  footer?: React.ReactNode;
   onDelete?: () => void;
   multiline?: boolean;
   className?: string;
 }
 
-export default function PropertyRow({ icon, label, children, onDelete, multiline, className }: PropertyRowProps) {
+export default function PropertyRow({ icon, label, children, footer, onDelete, multiline, className }: PropertyRowProps) {
   return (
     <div
       className={`${styles.root}${multiline ? ` ${styles.multiline}` : ''}${className ? ` ${className}` : ''}`}
     >
-      <span className={styles.label}>
-        <IconWrapper>{icon}</IconWrapper>
-        <span className={styles.labelText}>{label}</span>
-      </span>
-      <div className={styles.field}>
-        {children}
+      <div className={styles.row}>
+        <span className={styles.label}>
+          <IconWrapper>{icon}</IconWrapper>
+          <span className={styles.labelText}>{label}</span>
+        </span>
+        <div className={styles.field}>
+          {children}
+        </div>
+        <button
+          className={`${styles.deleteBtn}${!onDelete ? ` ${styles.deleteBtnHidden}` : ''}`}
+          onClick={onDelete}
+          aria-label="Delete property"
+          tabIndex={onDelete ? 0 : -1}
+        >
+          <X size={12} />
+        </button>
       </div>
-      <button
-        className={`${styles.deleteBtn}${!onDelete ? ` ${styles.deleteBtnHidden}` : ''}`}
-        onClick={onDelete}
-        aria-label="Delete property"
-        tabIndex={onDelete ? 0 : -1}
-      >
-        <X size={12} />
-      </button>
+      {footer && <div className={styles.footer}>{footer}</div>}
     </div>
   );
 }

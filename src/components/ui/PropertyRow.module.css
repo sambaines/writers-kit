@@ -2,15 +2,21 @@
 
 .root {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
   padding: 4px 16px 4px 14px;
   width: 100%;
   min-height: 32px;
 }
 
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
 /* Textarea variant — top-align label and delete btn with 4px offset */
-.multiline {
+.multiline .row {
   align-items: flex-start;
 }
 
@@ -79,4 +85,10 @@
 .deleteBtnHidden {
   visibility: hidden;
   pointer-events: none;
+}
+
+/* ─── Footer slot (full-width, below main row) ──────────── */
+
+.footer {
+  width: 100%;
 }
