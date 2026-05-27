@@ -736,7 +736,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                         <Popover.Trigger asChild>
                           <button className={styles.typeSelectInline}>
                             {schema && <DynamicIcon name={schema.icon} size={12} color={schema.color} />}
-                            <span className={styles.typeSelectText} style={{ color: schema?.color ?? 'var(--color-paperwhite-50)' }}>{entity.type}</span>
+                            <span className={styles.typeSelectText}>{entity.type}</span>
                             <CaretUpDown size={12} className={styles.typeSelectCaret} />
                           </button>
                         </Popover.Trigger>
