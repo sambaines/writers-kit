@@ -31,6 +31,7 @@ export interface SchemaDefinition {
   presetRelations?: PresetRelation[];
   description?: string;
   filePath: string;          // path to the .md schema file
+  fieldOrder?: string[];     // ordered field keys (schema + custom fields combined)
 }
 
 export type RelationKind = 'parentOf' | 'childOf' | 'siblingOf' | 'relatedTo';

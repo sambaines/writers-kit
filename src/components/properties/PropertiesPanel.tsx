@@ -5,8 +5,9 @@ import * as Popover from '@radix-ui/react-popover';
 import {
   X, HashStraight, Calendar, CalendarDots, CalendarX, Tag, Textbox, ToggleLeft, CirclesFour,
   ArrowUpRight, Plus, BookOpenText, HardDrives, Books, Clock, ClockUser,
-  FileText, CaretUpDown, CaretDown,
+  FileText, CaretUpDown, CaretDown, DotsSixVertical,
 } from '@phosphor-icons/react';
+import IconWrapper from '../ui/IconWrapper';
 import { useUIStore } from '../../store/ui.store';
 import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
@@ -28,7 +29,7 @@ import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
 import { parseCustomDate, parseCustomDateRange, getDaysInMonth } from '../../services/calendar.service';
 import styles from './PropertiesPanel.module.css';
-import type { FieldDefinition, RelationKind, PresetRelation, CustomDate, CustomDateRange } from '../../types';
+import type { FieldDefinition, RelationKind, PresetRelation, CustomDate, CustomDateRange, SchemaDefinition } from '../../types';
 
 function unique<T>(arr: T[]): T[] {
   return [...new Set(arr)];
@@ -584,9 +585,10 @@ export default function PropertiesPanel() {
   );
   const { entities, schemas } = useVaultData();
 
-  const patchEntityFrontmatter = useVaultStore((s) => s.patchEntityFrontmatter);
+  const patchEntityFrontmatter  = useVaultStore((s) => s.patchEntityFrontmatter);
   const addRelation             = useVaultStore((s) => s.addRelation);
   const removeRelation          = useVaultStore((s) => s.removeRelation);
+  const updateSchemaFieldOrder  = useVaultStore((s) => s.updateSchemaFieldOrder);
 
   const [typeSelectOpen, setTypeSelectOpen]       = useState(false);
   const [typeSelectQuery, setTypeSelectQuery]     = useState('');
@@ -597,9 +599,61 @@ export default function PropertiesPanel() {
   const [newPropSelectMode, setNewPropSelectMode]       = useState<'options' | 'entity'>('options');
   const [newPropOptions, setNewPropOptions]             = useState('');
   const [newPropTargetType, setNewPropTargetType]       = useState('');
-const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
+  const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
   const [relationsOpen, setRelationsOpen] = useState(() => localStorage.getItem('pp-relations') !== 'false');
   const [statsOpen, setStatsOpen]         = useState(() => localStorage.getItem('pp-stats') !== 'false');
+
+  // ── Drag state ──────────────────────────────────────────
+  const [draggingKey, _setDraggingKey] = useState<string | null>(null);
+  const [overIndex, _setOverIndex]     = useState<number>(-1);
+  const overIndexRef     = useRef<number>(-1);
+  const dragStartIdxRef  = useRef<number>(-1);
+  const dragOffsetYRef   = useRef<number>(0);
+  const dragCloneRef     = useRef<HTMLDivElement | null>(null);
+  const fieldWrapperRefs = useRef<(HTMLElement | null)[]>([]);
+  const spacerRefs       = useRef<(HTMLElement | null)[]>([]);
+
+  // ── Portal drag handle state ─────────────────────────────
+  const panelRef       = useRef<HTMLDivElement>(null);
+  const [handlePos, setHandlePos] = useState<{ key: string; idx: number; top: number; left: number } | null>(null);
+  const handleHoverRef = useRef(false);
+  const hideTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function setDraggingKey(v: string | null) { _setDraggingKey(v); }
+  function setOverIndex(v: number)          { overIndexRef.current = v; _setOverIndex(v); }
+
+  function scheduleHide() {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      if (!handleHoverRef.current) setHandlePos(null);
+    }, 150);
+  }
+
+  function onFieldsMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (draggingKey) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const panelRect = panel.getBoundingClientRect();
+    for (let i = 0; i < fieldWrapperRefs.current.length; i++) {
+      const el = fieldWrapperRefs.current[i];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (e.clientY >= r.top && e.clientY < r.bottom) {
+        const key = allDraggableItems[i]?.key;
+        if (key) {
+          if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+          const isTextarea = allDraggableItems[i]?.field.type === 'textarea';
+          setHandlePos({ key, idx: i, top: r.top + (isTextarea ? 0 : 4), left: panelRect.left - 20 });
+        }
+        return;
+      }
+    }
+    scheduleHide();
+  }
+
+  function onFieldsMouseLeave() {
+    if (!handleHoverRef.current) scheduleHide();
+  }
 
   function toggleSection(key: string, setter: React.Dispatch<React.SetStateAction<boolean>>) {
     setter((o) => { localStorage.setItem(key, String(!o)); return !o; });
@@ -607,11 +661,6 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
 
   const entity = entities.find((e) => e.id === activeEntityId) ?? null;
   const schema = entity ? schemas.find((s) => s.name === entity.type) : null;
-
-  const userFields = schema?.fields.map((field) => ({
-    ...field,
-    value: entity?.frontmatter[field.key],
-  })) ?? [];
 
   const RELATION_GROUPS: { kind: RelationKind; label: string; key: string }[] = [
     { kind: 'parentOf',  label: 'Parent of',  key: '_parentOf'  },
@@ -667,6 +716,127 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
     [entity?.frontmatter.__customFields], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // ── Unified ordered field list (schema + custom, respects fieldOrder) ──
+  type DraggableItem =
+    | { key: string; isCustom: false; field: FieldDefinition }
+    | { key: string; isCustom: true;  field: FieldDefinition; cfField: CustomField };
+
+  const allDraggableItems = useMemo((): DraggableItem[] => {
+    if (!entity) return [];
+    const seen = new Set<string>();
+    const items: DraggableItem[] = [];
+    for (const f of schema?.fields ?? []) {
+      if (!seen.has(f.key)) { seen.add(f.key); items.push({ key: f.key, isCustom: false, field: f }); }
+    }
+    for (const cf of customFields) {
+      if (!seen.has(cf.key)) { seen.add(cf.key); items.push({ key: cf.key, isCustom: true, field: cf as FieldDefinition, cfField: cf }); }
+    }
+    const fieldOrder = schema?.fieldOrder ?? [];
+    if (fieldOrder.length === 0) return items;
+    const remaining = [...items];
+    const ordered: DraggableItem[] = [];
+    for (const key of fieldOrder) {
+      const idx = remaining.findIndex((it) => it.key === key);
+      if (idx !== -1) { ordered.push(remaining[idx]); remaining.splice(idx, 1); }
+    }
+    return [...ordered, ...remaining];
+  }, [schema, customFields, entity]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function reorderItems(keys: string[], from: number, toSpacer: number): string[] {
+    const result = [...keys];
+    const [removed] = result.splice(from, 1);
+    const insertAt = toSpacer > from ? toSpacer - 1 : toSpacer;
+    result.splice(insertAt, 0, removed);
+    return result;
+  }
+
+  function spacerClass(i: number): string {
+    if (!draggingKey) return styles.spacer;
+    if (overIndex === i) return `${styles.spacer} ${styles.spacerTarget}`;
+    return `${styles.spacer} ${styles.spacerVisible}`;
+  }
+
+  function handleDragStart(
+    e: React.PointerEvent<HTMLButtonElement>,
+    fieldKey: string,
+    fieldIndex: number,
+    currentSchema: SchemaDefinition,
+  ) {
+    if (!entity) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const containerEl = fieldWrapperRefs.current[fieldIndex];
+    if (!containerEl) return;
+
+    const rect = containerEl.getBoundingClientRect();
+    dragOffsetYRef.current = e.clientY - rect.top;
+    dragStartIdxRef.current = fieldIndex;
+
+    // Snapshot items for this drag session
+    const itemsSnapshot = allDraggableItems.map((it) => it.key);
+
+    // Create fixed clone
+    const clone = document.createElement('div');
+    clone.style.cssText = [
+      `position:fixed`,
+      `top:${rect.top}px`,
+      `left:${rect.left}px`,
+      `width:${rect.width}px`,
+      `height:${rect.height}px`,
+      `z-index:9999`,
+      `pointer-events:none`,
+      `border-radius:4px`,
+      `border:1px solid #323434`,
+      `background:#282A2A`,
+      `box-shadow:0 4px 16px rgba(0,0,0,0.5),inset 0 0 0 1px rgba(255,255,255,0.04)`,
+      `overflow:hidden`,
+    ].join(';');
+    clone.innerHTML = containerEl.innerHTML;
+    document.body.appendChild(clone);
+    dragCloneRef.current = clone;
+
+    setDraggingKey(fieldKey);
+    setOverIndex(fieldIndex);
+    setHandlePos(null);
+
+    function onMove(ev: PointerEvent) {
+      if (dragCloneRef.current) {
+        dragCloneRef.current.style.top = `${ev.clientY - dragOffsetYRef.current}px`;
+      }
+      const wrappers = fieldWrapperRefs.current;
+      let insertIdx = wrappers.length;
+      for (let i = 0; i < wrappers.length; i++) {
+        const el = wrappers[i];
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (ev.clientY < (r.top + r.bottom) / 2) { insertIdx = i; break; }
+      }
+      setOverIndex(insertIdx);
+    }
+
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (dragCloneRef.current) {
+        document.body.removeChild(dragCloneRef.current);
+        dragCloneRef.current = null;
+      }
+      const from = dragStartIdxRef.current;
+      const to   = overIndexRef.current;
+      if (from !== -1 && to !== from && to !== from + 1) {
+        const newOrder = reorderItems(itemsSnapshot, from, to);
+        void updateSchemaFieldOrder(currentSchema.id, newOrder);
+      }
+      setDraggingKey(null);
+      setOverIndex(-1);
+      dragStartIdxRef.current = -1;
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
   function handleAddCustomProp() {
     if (!entity || !newPropLabel.trim()) return;
     const key = toKey(newPropLabel);
@@ -711,7 +881,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
   }
 
   return (
-    <div className={styles.panel}>
+    <div ref={panelRef} className={styles.panel}>
       <PanelHeader
         title="Metadata"
         onClose={() => setPropertiesPanelOpen(false)}
@@ -724,7 +894,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
               {/* Properties: type + schema-defined fields */}
               <section className={styles.section}>
                 <SubHeader title="Properties" open={propsOpen} onToggle={() => toggleSection('pp-props', setPropsOpen)} />
-                {propsOpen && <div className={styles.fields}>
+                {propsOpen && <div className={styles.fields} onMouseMove={onFieldsMouseMove} onMouseLeave={onFieldsMouseLeave}>
                   {/* Type row */}
                   <PropertyRow icon={<CirclesFour size={12} />} label="Type">
                     <Popover.Root
@@ -772,103 +942,75 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                       </Popover.Portal>
                     </Popover.Root>
                   </PropertyRow>
-                  {/* Schema fields */}
-                  {userFields.map((field) => {
-                    const isTag = field.type === 'tags';
+                  {/* Unified draggable field list (schema + custom, ordered by fieldOrder) */}
+                  {allDraggableItems.map((item, i) => {
+                    const { key, isCustom, field } = item;
+                    const value      = entity.frontmatter[key];
+                    const isTag      = field.type === 'tags';
                     const isMultiline = field.type === 'textarea';
-                    const tagList = isTag ? parseTags(field.value) : [];
-                    return (
-                      <React.Fragment key={`${entity.id}-${field.key}`}>
-                        <PropertyRow
-                          icon={getFieldIcon(field.type)}
-                          label={field.label}
-                          multiline={isMultiline}
-                        >
-                          <FieldInput
-                            field={field}
-                            value={field.value}
-                            onSave={handleFieldSave}
-                            entities={entities}
-                            schemas={schemas}
-                          />
-                        </PropertyRow>
-                        {isTag && tagList.length > 0 && (
-                          <TagsRow>
-                            {tagList.map((tag) => (
-                              <Chip
-                                key={tag}
-                                label={tag}
-                                leadingIcon={<Tag size={12} />}
-                                onRemove={() => handleFieldSave(field.key, tagList.filter((t) => t !== tag))}
-                              />
-                            ))}
-                          </TagsRow>
-                        )}
-                        {isTag && (
-                          <TagDropdown
-                            fieldKey={field.key}
-                            currentTags={tagList}
-                            entities={entities}
-                            onSave={handleFieldSave}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                  {/* Custom per-entity fields */}
-                  {customFields.map((cf) => {
-                    const isTag = cf.type === 'tags';
-                    const isMultiline = cf.type === 'textarea';
-                    const cfValue = entity.frontmatter[cf.key];
-                    const tagList = isTag ? parseTags(cfValue) : [];
-                    const handleCreateCustomOption = cf.type === 'select' && cf.selectMode !== 'entity'
+                    const tagList    = isTag ? parseTags(value) : [];
+                    const createOpt  = isCustom && field.type === 'select' && field.selectMode !== 'entity'
                       ? (option: string) => {
                           const updated = customFields.map((f) =>
-                            f.key === cf.key ? { ...f, options: [...(f.options ?? []), option] } : f,
+                            f.key === key ? { ...f, options: [...(f.options ?? []), option] } : f,
                           );
                           void patchEntityFrontmatter(entity, { __customFields: updated });
                         }
                       : undefined;
                     return (
-                      <React.Fragment key={`${entity.id}-custom-${cf.key}`}>
-                        <PropertyRow
-                          icon={getFieldIcon(cf.type)}
-                          label={cf.label}
-                          multiline={isMultiline}
-                          onDelete={() => handleRemoveCustomProp(cf.key)}
+                      <React.Fragment key={`${entity.id}-${key}`}>
+                        <div
+                          className={`${styles.spacer} ${draggingKey ? (overIndex === i ? styles.spacerTarget : styles.spacerVisible) : ''}`}
+                          ref={(el) => { spacerRefs.current[i] = el; }}
+                        />
+                        <div
+                          className={`${styles.draggableItem}${draggingKey === key ? ` ${styles.draggingGhost}` : ''}`}
+                          ref={(el) => { fieldWrapperRefs.current[i] = el; }}
                         >
-                          <FieldInput
-                            field={cf as FieldDefinition}
-                            value={cfValue}
-                            onSave={handleFieldSave}
-                            entities={entities}
-                            schemas={schemas}
-                            onCreateOption={handleCreateCustomOption}
-                          />
-                        </PropertyRow>
-                        {isTag && tagList.length > 0 && (
-                          <TagsRow>
-                            {tagList.map((tag) => (
-                              <Chip
-                                key={tag}
-                                label={tag}
-                                leadingIcon={<Tag size={12} />}
-                                onRemove={() => handleFieldSave(cf.key, tagList.filter((t) => t !== tag))}
-                              />
-                            ))}
-                          </TagsRow>
-                        )}
-                        {isTag && (
-                          <TagDropdown
-                            fieldKey={cf.key}
-                            currentTags={tagList}
-                            entities={entities}
-                            onSave={handleFieldSave}
-                          />
-                        )}
+                          <PropertyRow
+                            icon={getFieldIcon(field.type)}
+                            label={field.label}
+                            multiline={isMultiline}
+                            onDelete={isCustom ? () => handleRemoveCustomProp(key) : undefined}
+                          >
+                            <FieldInput
+                              field={field}
+                              value={value}
+                              onSave={handleFieldSave}
+                              entities={entities}
+                              schemas={schemas}
+                              onCreateOption={createOpt}
+                            />
+                          </PropertyRow>
+                          {isTag && tagList.length > 0 && (
+                            <TagsRow>
+                              {tagList.map((tag) => (
+                                <Chip
+                                  key={tag}
+                                  label={tag}
+                                  leadingIcon={<Tag size={12} />}
+                                  onRemove={() => handleFieldSave(key, tagList.filter((t) => t !== tag))}
+                                />
+                              ))}
+                            </TagsRow>
+                          )}
+                          {isTag && (
+                            <TagDropdown
+                              fieldKey={key}
+                              currentTags={tagList}
+                              entities={entities}
+                              onSave={handleFieldSave}
+                            />
+                          )}
+                        </div>
                       </React.Fragment>
                     );
                   })}
+                  {/* Trailing spacer */}
+                  <div
+                    className={`${styles.spacer} ${draggingKey ? (overIndex === allDraggableItems.length ? styles.spacerTarget : styles.spacerVisible) : ''}`}
+                    ref={(el) => { spacerRefs.current[allDraggableItems.length] = el; }}
+                  />
                   {/* Add property form */}
                   {addingProp ? (
                     <div className={styles.addPropForm}>
@@ -1116,6 +1258,31 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
           <ScrollArea.Thumb className={styles.scrollThumb} />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
+
+      {handlePos && !draggingKey && schema && (
+        <button
+          className={styles.floatingDragHandle}
+          style={{ top: handlePos.top, left: handlePos.left }}
+          onPointerDown={(e) => {
+            const item = allDraggableItems[handlePos.idx];
+            if (item) handleDragStart(e, item.key, handlePos.idx, schema);
+          }}
+          onMouseEnter={() => {
+            handleHoverRef.current = true;
+            if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+          }}
+          onMouseLeave={() => {
+            handleHoverRef.current = false;
+            scheduleHide();
+          }}
+          aria-label="Drag to reorder"
+          tabIndex={-1}
+        >
+          <IconWrapper size={24}>
+            <DotsSixVertical size={16} />
+          </IconWrapper>
+        </button>
+      )}
 
       {entity && (
         <RelationPickerDialog

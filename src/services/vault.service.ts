@@ -126,6 +126,7 @@ function parseSchema(
     presetRelations: fm.presetRelations ?? [],
     description: fm.description,
     filePath: relativePath,
+    fieldOrder: fm.fieldOrder as string[] | undefined,
   };
 }
 
@@ -242,6 +243,7 @@ export async function saveSchema(
   if (schema.description) fm.description = schema.description;
   if (schema.fields.length > 0) fm.fields = schema.fields;
   if (schema.presetRelations && schema.presetRelations.length > 0) fm.presetRelations = schema.presetRelations;
+  if (schema.fieldOrder && schema.fieldOrder.length > 0) fm.fieldOrder = schema.fieldOrder;
   const content = matter.stringify('', fm);
   await writeTextFile(joinPath(vaultPath, schema.filePath), content);
 }

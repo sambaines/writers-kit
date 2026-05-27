@@ -87,6 +87,7 @@ interface VaultState {
   addRelation: (sourceId: string, targetId: string, kind: RelationKind) => Promise<void>;
   removeRelation: (sourceId: string, targetId: string, kind: RelationKind) => Promise<void>;
   reorderSchemas: (orderedIds: string[]) => Promise<void>;
+  updateSchemaFieldOrder: (schemaId: string, fieldOrder: string[]) => Promise<void>;
 }
 
 export const useVaultStore = create<VaultState>()(
@@ -293,6 +294,13 @@ export const useVaultStore = create<VaultState>()(
         ];
         set({ schemas: reordered });
         await saveTypeOrder(vaultPath, orderedIds);
+      },
+
+      updateSchemaFieldOrder: async (schemaId, fieldOrder) => {
+        const { schemas, editSchema } = get();
+        const schema = schemas.find((s) => s.id === schemaId);
+        if (!schema) return;
+        await editSchema({ ...schema, fieldOrder });
       },
 
       removeRelation: async (sourceId, targetId, kind) => {
