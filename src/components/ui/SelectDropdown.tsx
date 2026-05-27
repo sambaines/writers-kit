@@ -168,7 +168,8 @@ export default function SelectDropdown({
           className={styles.popover}
           side="bottom"
           sideOffset={4}
-          align="end"
+          align="start"
+          avoidCollisions={false}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <SelectWrapper

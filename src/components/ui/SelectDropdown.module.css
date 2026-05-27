@@ -73,6 +73,7 @@
   width: 256px;
   z-index: 1000;
   outline: none;
+  margin-left: -112px;
   transform-origin: top center;
   will-change: opacity, transform;
 }
