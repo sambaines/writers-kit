@@ -1,0 +1,74 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-grey-900);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 200px;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ─── Search row ─────────────────────────────────────────── */
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 8px;
+  height: 36px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.searchIcon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.searchInput {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--text-base);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  padding: 0 6px;
+}
+
+.searchInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ─── List ───────────────────────────────────────────────── */
+
+.listRoot {
+  flex: 1;
+  overflow: hidden;
+}
+
+.listViewport {
+  max-height: 240px;
+}
+
+.list {
+  padding: 4px;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────── */
+
+.scrollbar {
+  display: flex;
+  width: 6px;
+  padding: 4px 2px;
+}
+
+.scrollThumb {
+  flex: 1;
+  background: var(--border-default);
+  border-radius: 3px;
+}
