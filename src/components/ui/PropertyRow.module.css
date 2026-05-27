@@ -3,9 +3,8 @@
 .root {
   display: flex;
   flex-direction: column;
-  padding: 4px 16px 4px 14px;
+  padding: 0 16px 0 14px;
   width: 100%;
-  min-height: 32px;
 }
 
 .row {
@@ -13,19 +12,22 @@
   align-items: center;
   gap: 4px;
   width: 100%;
+  height: 32px;
 }
 
 /* Textarea variant — top-align label and delete btn with 4px offset */
 .multiline .row {
   align-items: flex-start;
+  height: auto;
+  min-height: 32px;
 }
 
 .multiline .label {
-  padding-top: 6px; /* 2px outer border + 4px content padding = visually aligns with first text line */
+  padding-top: 4px;
 }
 
 .multiline .deleteBtn {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 /* ─── Label ─────────────────────────────────────────────── */
