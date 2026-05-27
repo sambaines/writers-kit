@@ -6,13 +6,12 @@ interface PropertyRowProps {
   icon: React.ReactNode;
   label: string;
   children: React.ReactNode;
-  footer?: React.ReactNode;
   onDelete?: () => void;
   multiline?: boolean;
   className?: string;
 }
 
-export default function PropertyRow({ icon, label, children, footer, onDelete, multiline, className }: PropertyRowProps) {
+export default function PropertyRow({ icon, label, children, onDelete, multiline, className }: PropertyRowProps) {
   return (
     <div
       className={`${styles.root}${multiline ? ` ${styles.multiline}` : ''}${className ? ` ${className}` : ''}`}
@@ -34,7 +33,6 @@ export default function PropertyRow({ icon, label, children, footer, onDelete, m
           <X size={12} />
         </button>
       </div>
-      {footer && <div className={styles.footer}>{footer}</div>}
     </div>
   );
 }

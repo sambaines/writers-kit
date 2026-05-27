@@ -89,8 +89,3 @@
   pointer-events: none;
 }
 
-/* ─── Footer slot (full-width, below main row) ──────────── */
-
-.footer {
-  width: 100%;
-}

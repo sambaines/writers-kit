@@ -11,6 +11,7 @@ import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import Chip from '../ui/Chip';
+import TagsRow from '../ui/TagsRow';
 import TertiaryButton from '../ui/TertiaryButton';
 import ActionRow from '../ui/ActionRow';
 import Switch from '../ui/Switch';
@@ -725,18 +726,6 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                           icon={getFieldIcon(field.type)}
                           label={field.label}
                           multiline={isMultiline}
-                          footer={isTag && tagList.length > 0 ? (
-                            <div className={styles.tagPillsRow}>
-                              {tagList.map((tag) => (
-                                <Chip
-                                  key={tag}
-                                  label={tag}
-                                  leadingIcon={<Tag size={12} />}
-                                  onRemove={() => handleFieldSave(field.key, tagList.filter((t) => t !== tag))}
-                                />
-                              ))}
-                            </div>
-                          ) : undefined}
                         >
                           <FieldInput
                             field={field}
@@ -746,6 +735,18 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                             schemas={schemas}
                           />
                         </PropertyRow>
+                        {isTag && tagList.length > 0 && (
+                          <TagsRow>
+                            {tagList.map((tag) => (
+                              <Chip
+                                key={tag}
+                                label={tag}
+                                leadingIcon={<Tag size={12} />}
+                                onRemove={() => handleFieldSave(field.key, tagList.filter((t) => t !== tag))}
+                              />
+                            ))}
+                          </TagsRow>
+                        )}
                         {isTag && (
                           <ActionRow>
                             <TertiaryButton icon={<Plus size={12} />} label="Add tag" />
@@ -767,18 +768,6 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                           label={cf.label}
                           multiline={isMultiline}
                           onDelete={() => handleRemoveCustomProp(cf.key)}
-                          footer={isTag && tagList.length > 0 ? (
-                            <div className={styles.tagPillsRow}>
-                              {tagList.map((tag) => (
-                                <Chip
-                                  key={tag}
-                                  label={tag}
-                                  leadingIcon={<Tag size={12} />}
-                                  onRemove={() => handleFieldSave(cf.key, tagList.filter((t) => t !== tag))}
-                                />
-                              ))}
-                            </div>
-                          ) : undefined}
                         >
                           <FieldInput
                             field={cf as FieldDefinition}
@@ -788,6 +777,18 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                             schemas={schemas}
                           />
                         </PropertyRow>
+                        {isTag && tagList.length > 0 && (
+                          <TagsRow>
+                            {tagList.map((tag) => (
+                              <Chip
+                                key={tag}
+                                label={tag}
+                                leadingIcon={<Tag size={12} />}
+                                onRemove={() => handleFieldSave(cf.key, tagList.filter((t) => t !== tag))}
+                              />
+                            ))}
+                          </TagsRow>
+                        )}
                         {isTag && (
                           <ActionRow>
                             <TertiaryButton icon={<Plus size={12} />} label="Add tag" />
