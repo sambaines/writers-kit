@@ -190,11 +190,7 @@
 
 /* ─── Sections ──────────────────────────────────────────── */
 .section {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.section:first-child {
-  border-top: none;
+  border-bottom: 1px solid var(--color-grey-850);
 }
 
 .sectionToggle {
