@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useEffect, useId } from 'react';
 import { MagnifyingGlass } from '@phosphor-icons/react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import Input from './Input';
@@ -42,6 +42,47 @@ export default function SelectWrapper({
   searchPlaceholder = 'Search…',
   onSearchChange,
 }: SelectWrapperProps) {
+  const listboxId = useId();
+  const listRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  // After every render: assign IDs and sync data-keyboard-active on options
+  useEffect(() => {
+    const options = Array.from(
+      listRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? []
+    );
+    options.forEach((el, i) => {
+      el.id = `${listboxId}-${i}`;
+      el.toggleAttribute('data-keyboard-active', i === activeIndex);
+    });
+    if (activeIndex >= 0) {
+      options[activeIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  });
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    const options = Array.from(
+      listRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? []
+    );
+    if (!options.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((i) => (i < options.length - 1 ? i + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => (i > 0 ? i - 1 : options.length - 1));
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      options[activeIndex]?.click();
+    }
+  }
+
+  function handleSearchChange(value: string) {
+    setActiveIndex(-1);
+    onSearchChange?.(value);
+  }
+
   // When using items prop, filter internally by searchValue
   const filteredItems = useMemo(() => {
     if (!items) return [];
@@ -63,21 +104,26 @@ export default function SelectWrapper({
   }, [items, searchValue]);
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} onKeyDown={handleKeyDown}>
       {showSearch && (
         <div className={styles.searchContainer}>
           <Input
             leadingIcon={<MagnifyingGlass size={12} />}
             value={searchValue}
             placeholder={searchPlaceholder}
-            onChange={(e) => onSearchChange?.(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             autoFocus
           />
         </div>
       )}
       <ScrollArea.Root className={styles.listRoot} type="auto">
         <ScrollArea.Viewport className={styles.listViewport}>
-          <div className={styles.list} role="listbox">
+          <div
+            ref={listRef}
+            className={styles.list}
+            role="listbox"
+            aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
+          >
             {children ?? filteredItems.map((item, i) => {
               if (item.type === 'divider') return <DividerOption key={`d-${i}`} />;
               if (item.type === 'header') return <HeaderRowOption key={`h-${i}`} label={item.label} />;

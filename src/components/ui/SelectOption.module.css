@@ -10,7 +10,8 @@
   transition: background var(--transition-fast);
 }
 
-.root:hover:not(.disabled) {
+.root:hover:not(.disabled),
+.root[data-keyboard-active]:not(.disabled) {
   background: var(--color-grey-900);
 }
 
