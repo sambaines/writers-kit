@@ -4,7 +4,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg-surface);
+  background: var(--color-grey-900);
   border-left: 1px solid var(--border-subtle);
   overflow: hidden;
 }
