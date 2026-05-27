@@ -57,9 +57,14 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
     }, 600));
   }, []);
 
+  function handleRemove(tag: string) {
+    onSave(fieldKey, currentTags.filter((t) => t !== tag));
+  }
+
   function handleAdd(tag: string) {
     runAnim(tag, 'add', () => {
       onSave(fieldKey, [...currentTags, tag]);
+      setQuery('');
     });
   }
 
@@ -94,7 +99,7 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
       // Selected tags last
       currentTags.forEach((tag) => {
         nodes.push(
-          <SelectOption key={`sel-${tag}`} label={tag} icon={<Tag size={12} />} selected />,
+          <SelectOption key={`sel-${tag}`} label={tag} icon={<Tag size={12} />} selected onClick={() => handleRemove(tag)} />,
         );
       });
     } else {
@@ -104,7 +109,7 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
 
       matchingSelected.forEach((tag) => {
         nodes.push(
-          <SelectOption key={`msel-${tag}`} label={tag} icon={<Tag size={12} />} selected />,
+          <SelectOption key={`msel-${tag}`} label={tag} icon={<Tag size={12} />} selected onClick={() => handleRemove(tag)} />,
         );
       });
 

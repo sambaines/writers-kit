@@ -1,4 +1,4 @@
-import { Check, Prohibit, Plus } from '@phosphor-icons/react';
+import { Check, Prohibit, Plus, X } from '@phosphor-icons/react';
 import IconLabel from './IconLabel';
 import IconWrapper from './IconWrapper';
 import styles from './SelectOption.module.css';
@@ -39,7 +39,6 @@ export default function SelectOption({
 }: SelectOptionProps) {
   const staticTrailing = showAnimatedTrailing ? null
     : trailingIcon ? trailingIcon
-    : selected ? <Check size={12} />
     : disabled ? <Prohibit size={12} />
     : null;
 
@@ -73,6 +72,13 @@ export default function SelectOption({
             <span className={styles.animCheck} style={{ color: animCheckColor }}>
               <Check size={12} />
             </span>
+          </span>
+        </IconWrapper>
+      ) : selected ? (
+        <IconWrapper size={16}>
+          <span className={styles.selectedTrailing}>
+            <span className={styles.selectedCheck}><Check size={12} /></span>
+            <span className={styles.selectedRemove}><X size={12} /></span>
           </span>
         </IconWrapper>
       ) : staticTrailing ? (

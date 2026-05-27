@@ -7,7 +7,7 @@
   border-radius: 2px;
   cursor: pointer;
   user-select: none;
-  transition: background var(--transition-fast);
+  transition: none;
 }
 
 .root:hover:not(.disabled),
@@ -32,6 +32,43 @@
   min-width: 0;
   overflow: hidden;
   flex: 1;
+}
+
+/* ─── Selected trailing (Check → X on hover) ────────────── */
+
+.selectedTrailing {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selectedCheck,
+.selectedRemove {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 150ms ease;
+}
+
+.selectedCheck {
+  opacity: 1;
+}
+
+.selectedRemove {
+  opacity: 0;
+  color: var(--color-status-error-300);
+}
+
+.root:hover .selectedCheck {
+  opacity: 0;
+}
+
+.root:hover .selectedRemove {
+  opacity: 1;
 }
 
 /* ─── Animated trailing icon ─────────────────────────────── */
