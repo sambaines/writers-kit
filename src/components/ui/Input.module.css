@@ -125,7 +125,7 @@
 
 /* Active — has a value */
 .root:has(input:not(:placeholder-shown)) {
-  background: #333636;
+  background: var(--color-grey-850);
 }
 
 /* Error */

@@ -12,6 +12,7 @@ interface SelectOptionProps {
   preText?: string;
   preTextFaded?: boolean;
   selected?: boolean;
+  removable?: boolean;
   disabled?: boolean;
   iconColor?: string;
   labelColor?: string;
@@ -29,6 +30,7 @@ export default function SelectOption({
   preText,
   preTextFaded,
   selected,
+  removable = false,
   disabled,
   iconColor,
   labelColor,
@@ -74,12 +76,16 @@ export default function SelectOption({
             </span>
           </span>
         </IconWrapper>
-      ) : selected ? (
+      ) : selected && removable ? (
         <IconWrapper size={16}>
           <span className={styles.selectedTrailing}>
             <span className={styles.selectedCheck}><Check size={12} /></span>
             <span className={styles.selectedRemove}><X size={12} /></span>
           </span>
+        </IconWrapper>
+      ) : selected ? (
+        <IconWrapper size={16}>
+          <Check size={12} />
         </IconWrapper>
       ) : staticTrailing ? (
         <IconWrapper size={16}>

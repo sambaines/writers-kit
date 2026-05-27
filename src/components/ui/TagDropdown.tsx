@@ -99,7 +99,7 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
       // Selected tags last
       currentTags.forEach((tag) => {
         nodes.push(
-          <SelectOption key={`sel-${tag}`} label={tag} icon={<Tag size={12} />} selected onClick={() => handleRemove(tag)} />,
+          <SelectOption key={`sel-${tag}`} label={tag} icon={<Tag size={12} />} selected removable onClick={() => handleRemove(tag)} />,
         );
       });
     } else {
@@ -109,7 +109,7 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
 
       matchingSelected.forEach((tag) => {
         nodes.push(
-          <SelectOption key={`msel-${tag}`} label={tag} icon={<Tag size={12} />} selected onClick={() => handleRemove(tag)} />,
+          <SelectOption key={`msel-${tag}`} label={tag} icon={<Tag size={12} />} selected removable onClick={() => handleRemove(tag)} />,
         );
       });
 

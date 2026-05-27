@@ -16,8 +16,10 @@ export interface FieldDefinition {
   key: string;
   label: string;
   type: FieldType;
-  options?: string[];        // for 'select' fields
-  relatesTo?: string[];      // for 'relation' fields — list of schema names
+  options?: string[];              // for 'select' fields with mode 'options'
+  selectMode?: 'options' | 'entity'; // for 'select' fields
+  targetType?: string;             // for 'select' fields with mode 'entity'
+  relatesTo?: string[];            // for 'relation' fields — list of schema names
 }
 
 export interface SchemaDefinition {

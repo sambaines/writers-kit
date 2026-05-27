@@ -65,7 +65,7 @@
 
 /* Active — has a value */
 .root:has(textarea:not(:placeholder-shown)) {
-  background: #333636;
+  background: var(--color-grey-850);
 }
 .root:focus-within:has(textarea:not(:placeholder-shown)) {
   background: var(--color-grey-850);

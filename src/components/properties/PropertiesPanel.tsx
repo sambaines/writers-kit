@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import * as Select from '@radix-ui/react-select';
+import * as Popover from '@radix-ui/react-popover';
 import {
   X, HashStraight, Calendar, CalendarDots, CalendarX, Tag, Textbox, ToggleLeft, CirclesFour,
   ArrowUpRight, Plus, BookOpenText, HardDrives, Books, Clock, ClockUser,
@@ -13,6 +14,9 @@ import DynamicIcon from '../ui/DynamicIcon';
 import Chip from '../ui/Chip';
 import TagsRow from '../ui/TagsRow';
 import TagDropdown from '../ui/TagDropdown';
+import SelectDropdown from '../ui/SelectDropdown';
+import SelectWrapper from '../ui/SelectWrapper';
+import type { SelectItem } from '../ui/SelectWrapper';
 import Switch from '../ui/Switch';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
@@ -434,9 +438,10 @@ interface FieldInputProps {
   onSave: (key: string, value: unknown) => void;
   entities?: ReturnType<typeof useVaultData>['entities'];
   schemas?: ReturnType<typeof useVaultData>['schemas'];
+  onCreateOption?: (option: string) => void;
 }
 
-function FieldInput({ field, value, onSave, entities = [], schemas = [] }: FieldInputProps) {
+function FieldInput({ field, value, onSave, entities = [], schemas = [], onCreateOption }: FieldInputProps) {
   const [localVal, setLocalVal] = useState<string>(
     value === undefined || value === null ? '' : String(value),
   );
@@ -492,6 +497,22 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [] }: Field
     return null;
   }
 
+  if (field.type === 'select') {
+    return (
+      <SelectDropdown
+        fieldKey={field.key}
+        value={typeof value === 'string' ? value : undefined}
+        options={field.options ?? []}
+        mode={field.selectMode ?? 'options'}
+        entities={entities}
+        targetType={field.targetType}
+        schemas={schemas}
+        onSave={onSave}
+        onCreateOption={onCreateOption}
+      />
+    );
+  }
+
   if (field.type === 'relation') {
     const ids: string[] = Array.isArray(value) ? (value as string[]) : [];
     return (
@@ -529,6 +550,9 @@ interface CustomField {
   key: string;
   label: string;
   type: string;
+  selectMode?: 'options' | 'entity';
+  options?: string[];
+  targetType?: string;
 }
 
 const CUSTOM_PROP_TYPES = [
@@ -564,10 +588,15 @@ export default function PropertiesPanel() {
   const addRelation             = useVaultStore((s) => s.addRelation);
   const removeRelation          = useVaultStore((s) => s.removeRelation);
 
+  const [typeSelectOpen, setTypeSelectOpen]       = useState(false);
+  const [typeSelectQuery, setTypeSelectQuery]     = useState('');
   const [pickerOpen, setPickerOpen]               = useState(false);
-  const [addingProp, setAddingProp]               = useState(false);
-  const [newPropLabel, setNewPropLabel]           = useState('');
-  const [newPropType, setNewPropType]             = useState('text');
+  const [addingProp, setAddingProp]                     = useState(false);
+  const [newPropLabel, setNewPropLabel]                 = useState('');
+  const [newPropType, setNewPropType]                   = useState('text');
+  const [newPropSelectMode, setNewPropSelectMode]       = useState<'options' | 'entity'>('options');
+  const [newPropOptions, setNewPropOptions]             = useState('');
+  const [newPropTargetType, setNewPropTargetType]       = useState('');
 const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
   const [relationsOpen, setRelationsOpen] = useState(() => localStorage.getItem('pp-relations') !== 'false');
   const [statsOpen, setStatsOpen]         = useState(() => localStorage.getItem('pp-stats') !== 'false');
@@ -642,11 +671,27 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
     if (!entity || !newPropLabel.trim()) return;
     const key = toKey(newPropLabel);
     if (!key || customFields.find((f) => f.key === key)) return;
-    const newField: CustomField = { key, label: newPropLabel.trim(), type: newPropType };
+    const newField: CustomField = {
+      key,
+      label: newPropLabel.trim(),
+      type: newPropType,
+      ...(newPropType === 'select' ? {
+        selectMode: newPropSelectMode,
+        ...(newPropSelectMode === 'options' && newPropOptions.trim()
+          ? { options: newPropOptions.split(',').map((o) => o.trim()).filter(Boolean) }
+          : {}),
+        ...(newPropSelectMode === 'entity' && newPropTargetType
+          ? { targetType: newPropTargetType }
+          : {}),
+      } : {}),
+    };
     const updated: CustomField[] = [...customFields, newField];
     void patchEntityFrontmatter(entity, { __customFields: updated });
     setNewPropLabel('');
     setNewPropType('text');
+    setNewPropSelectMode('options');
+    setNewPropOptions('');
+    setNewPropTargetType('');
     setAddingProp(false);
   }
 
@@ -682,37 +727,49 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                 {propsOpen && <div className={styles.fields}>
                   {/* Type row */}
                   <PropertyRow icon={<CirclesFour size={12} />} label="Type">
-                    <Select.Root
-                      value={entity.type}
-                      onValueChange={(newType) => void patchEntityFrontmatter(entity, { __type: newType })}
+                    <Popover.Root
+                      open={typeSelectOpen}
+                      onOpenChange={(o) => { setTypeSelectOpen(o); if (!o) setTypeSelectQuery(''); }}
                     >
                       <div className={styles.typeSelectRoot}>
                         <div className={styles.typeSelectRing} />
-                        <Select.Trigger asChild>
+                        <Popover.Trigger asChild>
                           <button className={styles.typeSelectInline}>
                             {schema && <DynamicIcon name={schema.icon} size={12} color={schema.color} />}
                             <span className={styles.typeSelectText} style={{ color: schema?.color ?? 'var(--color-paperwhite-50)' }}>{entity.type}</span>
                             <CaretUpDown size={12} className={styles.typeSelectCaret} />
                           </button>
-                        </Select.Trigger>
+                        </Popover.Trigger>
                       </div>
-                      <Select.Portal>
-                        <Select.Content className={styles.typeSelectContent} position="popper" sideOffset={4}>
-                          <Select.Viewport>
-                            {schemas.map((s) => (
-                              <Select.Item key={s.id} value={s.name} className={styles.typeSelectItem}>
-                                <Select.ItemText>
-                                  <span className={styles.typeSelectItemInner}>
-                                    <DynamicIcon name={s.icon} size={12} color={s.color} />
-                                    <span>{s.name}</span>
-                                  </span>
-                                </Select.ItemText>
-                              </Select.Item>
-                            ))}
-                          </Select.Viewport>
-                        </Select.Content>
-                      </Select.Portal>
-                    </Select.Root>
+                      <Popover.Portal>
+                        <Popover.Content
+                          className={styles.typeSelectPopover}
+                          side="bottom"
+                          sideOffset={4}
+                          align="start"
+                          avoidCollisions={false}
+                          onOpenAutoFocus={(e) => e.preventDefault()}
+                        >
+                          <SelectWrapper
+                            items={schemas.map((s): SelectItem => ({
+                              type: 'option',
+                              label: s.name,
+                              icon: <DynamicIcon name={s.icon} size={12} />,
+                              iconColor: s.color,
+                              selected: entity.type === s.name,
+                              onClick: () => {
+                                void patchEntityFrontmatter(entity, { __type: s.name });
+                                setTypeSelectOpen(false);
+                              },
+                            }))}
+                            showSearch
+                            searchValue={typeSelectQuery}
+                            searchPlaceholder="Search types…"
+                            onSearchChange={setTypeSelectQuery}
+                          />
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover.Root>
                   </PropertyRow>
                   {/* Schema fields */}
                   {userFields.map((field) => {
@@ -763,6 +820,14 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                     const isMultiline = cf.type === 'textarea';
                     const cfValue = entity.frontmatter[cf.key];
                     const tagList = isTag ? parseTags(cfValue) : [];
+                    const handleCreateCustomOption = cf.type === 'select' && cf.selectMode !== 'entity'
+                      ? (option: string) => {
+                          const updated = customFields.map((f) =>
+                            f.key === cf.key ? { ...f, options: [...(f.options ?? []), option] } : f,
+                          );
+                          void patchEntityFrontmatter(entity, { __customFields: updated });
+                        }
+                      : undefined;
                     return (
                       <React.Fragment key={`${entity.id}-custom-${cf.key}`}>
                         <PropertyRow
@@ -777,6 +842,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                             onSave={handleFieldSave}
                             entities={entities}
                             schemas={schemas}
+                            onCreateOption={handleCreateCustomOption}
                           />
                         </PropertyRow>
                         {isTag && tagList.length > 0 && (
@@ -818,7 +884,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                       />
                       <Select.Root
                         value={newPropType}
-                        onValueChange={(v) => setNewPropType(v)}
+                        onValueChange={(v) => { setNewPropType(v); setNewPropSelectMode('options'); setNewPropOptions(''); setNewPropTargetType(''); }}
                       >
                         <Select.Trigger asChild>
                           <button className={styles.addPropTypeBtn}>
@@ -838,6 +904,45 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                           </Select.Content>
                         </Select.Portal>
                       </Select.Root>
+                      {newPropType === 'select' && (
+                        <div className={styles.addPropSelectConfig}>
+                          <div className={styles.addPropModeRow}>
+                            <button
+                              type="button"
+                              className={`${styles.addPropModeBtn} ${newPropSelectMode === 'options' ? styles.addPropModeBtnActive : ''}`}
+                              onClick={() => setNewPropSelectMode('options')}
+                            >
+                              Options
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.addPropModeBtn} ${newPropSelectMode === 'entity' ? styles.addPropModeBtnActive : ''}`}
+                              onClick={() => setNewPropSelectMode('entity')}
+                            >
+                              Entity
+                            </button>
+                          </div>
+                          {newPropSelectMode === 'options' ? (
+                            <input
+                              className={styles.addPropInput}
+                              placeholder="Options (comma-separated)"
+                              value={newPropOptions}
+                              onChange={(e) => setNewPropOptions(e.target.value)}
+                            />
+                          ) : (
+                            <select
+                              className={styles.addPropEntityTypeSelect}
+                              value={newPropTargetType}
+                              onChange={(e) => setNewPropTargetType(e.target.value)}
+                            >
+                              <option value="">Select entity type…</option>
+                              {schemas.map((s) => (
+                                <option key={s.name} value={s.name}>{s.name}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      )}
                       <div className={styles.addPropActions}>
                         <button
                           type="button"
@@ -850,7 +955,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                         <button
                           type="button"
                           className={styles.addPropCancel}
-                          onClick={() => { setAddingProp(false); setNewPropLabel(''); }}
+                          onClick={() => { setAddingProp(false); setNewPropLabel(''); setNewPropSelectMode('options'); setNewPropOptions(''); setNewPropTargetType(''); }}
                         >
                           Cancel
                         </button>
