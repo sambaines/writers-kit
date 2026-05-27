@@ -1,21 +1,25 @@
+import { forwardRef } from 'react';
 import IconLabel from './IconLabel';
 import styles from './TertiaryButton.module.css';
 
-interface TertiaryButtonProps {
+interface TertiaryButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
   icon?: React.ReactNode;
-  onClick?: () => void;
-  className?: string;
 }
 
-export default function TertiaryButton({ label, icon, onClick, className }: TertiaryButtonProps) {
-  return (
+const TertiaryButton = forwardRef<HTMLButtonElement, TertiaryButtonProps>(
+  ({ label, icon, className, ...props }, ref) => (
     <button
+      ref={ref}
       className={`${styles.root}${className ? ` ${className}` : ''}`}
       type="button"
-      onClick={onClick}
+      {...props}
     >
       <IconLabel icon={icon} label={label} />
     </button>
-  );
-}
+  )
+);
+
+TertiaryButton.displayName = 'TertiaryButton';
+
+export default TertiaryButton;

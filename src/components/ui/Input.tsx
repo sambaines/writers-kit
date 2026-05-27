@@ -16,6 +16,7 @@ interface InputProps {
   max?: number;
   id?: string;
   name?: string;
+  autoFocus?: boolean;
   className?: string;
 }
 
@@ -35,6 +36,7 @@ export default function Input({
   max,
   id,
   name,
+  autoFocus,
   className,
 }: InputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +78,7 @@ export default function Input({
           disabled={disabled}
           id={id}
           name={name}
+          autoFocus={autoFocus}
           onKeyDown={(e) => {
             if (!isNumber) return;
             if (!NUM_ALLOWED.has(e.key) && !/^\d$/.test(e.key) && !e.metaKey && !e.ctrlKey) {

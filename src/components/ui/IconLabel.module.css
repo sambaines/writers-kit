@@ -6,6 +6,24 @@
   min-width: 0;
 }
 
+.preText {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: var(--color-grey-300);
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 80px;
+  margin-right: 4px;
+  transition: opacity 250ms ease, max-width 300ms ease, margin-right 300ms ease;
+}
+
+.preTextFaded {
+  opacity: 0;
+  max-width: 0;
+  margin-right: 0;
+}
+
 .label {
   font-size: inherit;
   font-weight: inherit;

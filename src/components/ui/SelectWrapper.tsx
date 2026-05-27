@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { MagnifyingGlass } from '@phosphor-icons/react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
+import Input from './Input';
 import SelectOption from './SelectOption';
 import DividerOption from './DividerOption';
 import HeaderRowOption from './HeaderRowOption';
@@ -21,51 +23,54 @@ export type SelectItem =
   | { type: 'header'; label: string };
 
 interface SelectWrapperProps {
-  items: SelectItem[];
+  // Pass items for simple use cases (SelectWrapper handles filtering internally)
+  items?: SelectItem[];
+  // Pass children for complex use cases (e.g. animated options — caller pre-builds list)
+  children?: React.ReactNode;
+  // Controlled search
   showSearch?: boolean;
+  searchValue?: string;
   searchPlaceholder?: string;
-  searchIcon?: React.ReactNode;
+  onSearchChange?: (value: string) => void;
 }
 
 export default function SelectWrapper({
   items,
+  children,
   showSearch,
+  searchValue = '',
   searchPlaceholder = 'Search…',
-  searchIcon,
+  onSearchChange,
 }: SelectWrapperProps) {
-  const [query, setQuery] = useState('');
-
-  const filtered = useMemo(() => {
-    if (!query.trim()) return items;
-    const q = query.toLowerCase();
-    // Keep non-option items only if they are adjacent to matching options
-    // Simple approach: filter options by query, remove orphaned headers/dividers
+  // When using items prop, filter internally by searchValue
+  const filteredItems = useMemo(() => {
+    if (!items) return [];
+    if (!searchValue.trim()) return items;
+    const q = searchValue.toLowerCase();
     const result: SelectItem[] = [];
-    let pendingNonOptions: SelectItem[] = [];
-
+    let pending: SelectItem[] = [];
     for (const item of items) {
       if (item.type === 'option') {
         if (item.label.toLowerCase().includes(q)) {
-          result.push(...pendingNonOptions, item);
-          pendingNonOptions = [];
+          result.push(...pending, item);
+          pending = [];
         }
       } else {
-        pendingNonOptions.push(item);
+        pending.push(item);
       }
     }
     return result;
-  }, [items, query]);
+  }, [items, searchValue]);
 
   return (
     <div className={styles.root}>
       {showSearch && (
-        <div className={styles.searchRow}>
-          {searchIcon && <span className={styles.searchIcon}>{searchIcon}</span>}
-          <input
-            className={styles.searchInput}
-            value={query}
+        <div className={styles.searchContainer}>
+          <Input
+            leadingIcon={<MagnifyingGlass size={12} />}
+            value={searchValue}
             placeholder={searchPlaceholder}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => onSearchChange?.(e.target.value)}
             autoFocus
           />
         </div>
@@ -73,16 +78,12 @@ export default function SelectWrapper({
       <ScrollArea.Root className={styles.listRoot} type="auto">
         <ScrollArea.Viewport className={styles.listViewport}>
           <div className={styles.list} role="listbox">
-            {filtered.map((item, i) => {
-              if (item.type === 'divider') {
-                return <DividerOption key={`divider-${i}`} />;
-              }
-              if (item.type === 'header') {
-                return <HeaderRowOption key={`header-${i}-${item.label}`} label={item.label} />;
-              }
+            {children ?? filteredItems.map((item, i) => {
+              if (item.type === 'divider') return <DividerOption key={`d-${i}`} />;
+              if (item.type === 'header') return <HeaderRowOption key={`h-${i}`} label={item.label} />;
               return (
                 <SelectOption
-                  key={`option-${i}-${item.label}`}
+                  key={`${item.label}-${i}`}
                   label={item.label}
                   icon={item.icon}
                   trailingIcon={item.trailingIcon}

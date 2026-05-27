@@ -35,7 +35,7 @@
 }
 
 .root[data-has-leading] .content {
-  padding-left: 4px;
+  padding-left: 8px;
 }
 
 .root[data-has-trailing] .content {

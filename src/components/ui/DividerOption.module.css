@@ -1,5 +1,5 @@
 .root {
   height: 1px;
-  background: var(--border-subtle);
+  background: var(--color-grey-850);
   margin: 4px 0;
 }

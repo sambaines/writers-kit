@@ -12,8 +12,7 @@ import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import Chip from '../ui/Chip';
 import TagsRow from '../ui/TagsRow';
-import TertiaryButton from '../ui/TertiaryButton';
-import ActionRow from '../ui/ActionRow';
+import TagDropdown from '../ui/TagDropdown';
 import Switch from '../ui/Switch';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
@@ -748,9 +747,12 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                           </TagsRow>
                         )}
                         {isTag && (
-                          <ActionRow>
-                            <TertiaryButton icon={<Plus size={12} />} label="Add tag" />
-                          </ActionRow>
+                          <TagDropdown
+                            fieldKey={field.key}
+                            currentTags={tagList}
+                            entities={entities}
+                            onSave={handleFieldSave}
+                          />
                         )}
                       </React.Fragment>
                     );
@@ -790,9 +792,12 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                           </TagsRow>
                         )}
                         {isTag && (
-                          <ActionRow>
-                            <TertiaryButton icon={<Plus size={12} />} label="Add tag" />
-                          </ActionRow>
+                          <TagDropdown
+                            fieldKey={cf.key}
+                            currentTags={tagList}
+                            entities={entities}
+                            onSave={handleFieldSave}
+                          />
                         )}
                       </React.Fragment>
                     );
