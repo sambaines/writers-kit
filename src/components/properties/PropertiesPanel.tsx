@@ -766,6 +766,7 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                             searchValue={typeSelectQuery}
                             searchPlaceholder="Search types…"
                             onSearchChange={setTypeSelectQuery}
+                            emptyMessage="No types match that search query"
                           />
                         </Popover.Content>
                       </Popover.Portal>

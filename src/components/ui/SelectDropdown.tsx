@@ -134,6 +134,18 @@ export default function SelectDropdown({
       }
     }
 
+    if (qRaw && nodes.length === 0) {
+      const message = mode === 'entity'
+        ? `No ${targetType ?? 'entities'} match that search query`
+        : 'No options match that search query';
+      nodes.push(
+        <div key="__empty__" className={styles.emptyState}>
+          <CirclesFour size={12} className={styles.emptyStateIcon} />
+          <span>{message}</span>
+        </div>,
+      );
+    }
+
     return nodes;
   }, [mode, q, qRaw, options, value, entities, targetType, schemas, onCreateOption]);
 

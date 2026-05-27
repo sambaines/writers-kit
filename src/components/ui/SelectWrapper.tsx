@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useId } from 'react';
-import { MagnifyingGlass } from '@phosphor-icons/react';
+import { MagnifyingGlass, CirclesFour } from '@phosphor-icons/react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import Input from './Input';
 import SelectOption from './SelectOption';
@@ -32,6 +32,7 @@ interface SelectWrapperProps {
   searchValue?: string;
   searchPlaceholder?: string;
   onSearchChange?: (value: string) => void;
+  emptyMessage?: string;
 }
 
 export default function SelectWrapper({
@@ -41,6 +42,7 @@ export default function SelectWrapper({
   searchValue = '',
   searchPlaceholder = 'Search…',
   onSearchChange,
+  emptyMessage,
 }: SelectWrapperProps) {
   const listboxId = useId();
   const listRef = useRef<HTMLDivElement>(null);
@@ -124,23 +126,32 @@ export default function SelectWrapper({
             role="listbox"
             aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
           >
-            {children ?? filteredItems.map((item, i) => {
-              if (item.type === 'divider') return <DividerOption key={`d-${i}`} />;
-              if (item.type === 'header') return <HeaderRowOption key={`h-${i}`} label={item.label} />;
-              return (
-                <SelectOption
-                  key={`${item.label}-${i}`}
-                  label={item.label}
-                  icon={item.icon}
-                  trailingIcon={item.trailingIcon}
-                  selected={item.selected}
-                  disabled={item.disabled}
-                  iconColor={item.iconColor}
-                  labelColor={item.labelColor}
-                  onClick={item.onClick}
-                />
-              );
-            })}
+            {children ?? (
+              filteredItems.length === 0 && searchValue.trim()
+                ? (
+                  <div className={styles.emptyState}>
+                    <CirclesFour size={12} className={styles.emptyStateIcon} />
+                    <span>{emptyMessage ?? 'No results match that search query'}</span>
+                  </div>
+                )
+                : filteredItems.map((item, i) => {
+                    if (item.type === 'divider') return <DividerOption key={`d-${i}`} />;
+                    if (item.type === 'header') return <HeaderRowOption key={`h-${i}`} label={item.label} />;
+                    return (
+                      <SelectOption
+                        key={`${item.label}-${i}`}
+                        label={item.label}
+                        icon={item.icon}
+                        trailingIcon={item.trailingIcon}
+                        selected={item.selected}
+                        disabled={item.disabled}
+                        iconColor={item.iconColor}
+                        labelColor={item.labelColor}
+                        onClick={item.onClick}
+                      />
+                    );
+                  })
+            )}
           </div>
         </ScrollArea.Viewport>
         <ScrollArea.Scrollbar className={styles.scrollbar} orientation="vertical">

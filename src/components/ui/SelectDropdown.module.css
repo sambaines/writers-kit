@@ -94,3 +94,19 @@
   from { opacity: 1; transform: scaleY(1); }
   to   { opacity: 0; transform: scaleY(0.96); }
 }
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px;
+  height: 24px;
+  color: var(--color-paperwhite-50);
+  font-size: 12px;
+  user-select: none;
+}
+
+.emptyStateIcon {
+  flex-shrink: 0;
+  color: var(--text-disabled);
+}
