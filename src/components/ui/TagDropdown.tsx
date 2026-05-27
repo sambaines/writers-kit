@@ -70,22 +70,14 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
     });
   }
 
-  const q = query.trim().toLowerCase();
+  const qRaw = query.trim();
+  const q = qRaw.toLowerCase();
 
   const listContent = useMemo(() => {
     const nodes: React.ReactNode[] = [];
 
     if (!q) {
-      // Selected tags first
-      currentTags.forEach((tag) => {
-        nodes.push(
-          <SelectOption key={`sel-${tag}`} label={tag} icon={<Tag size={12} />} selected />,
-        );
-      });
       const unselected = vaultTags.filter((t) => !currentTags.includes(t));
-      if (currentTags.length > 0 && unselected.length > 0) {
-        nodes.push(<DividerOption key="div" />);
-      }
       unselected.forEach((tag) => {
         nodes.push(
           <SelectOption
@@ -94,6 +86,15 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
             icon={<Tag size={12} />}
             onClick={() => handleAdd(tag)}
           />,
+        );
+      });
+      if (unselected.length > 0 && currentTags.length > 0) {
+        nodes.push(<DividerOption key="div" />);
+      }
+      // Selected tags last
+      currentTags.forEach((tag) => {
+        nodes.push(
+          <SelectOption key={`sel-${tag}`} label={tag} icon={<Tag size={12} />} selected />,
         );
       });
     } else {
@@ -126,21 +127,21 @@ export default function TagDropdown({ fieldKey, currentTags, entities, onSave }:
       });
 
       if (!exactExists) {
-        const isAnim = anim?.tag === q && anim?.type === 'create';
+        const isAnim = anim?.tag === qRaw && anim?.type === 'create';
         const checkColor = isAnim
           ? anim!.phase === 'check-white' ? 'var(--color-paperwhite-50)' : 'var(--color-primary-blue-100)'
           : 'var(--color-primary-blue-100)';
         nodes.push(
           <SelectOption
             key={`create-${q}`}
-            label={q}
+            label={qRaw}
             icon={<Tag size={12} />}
             preText="Create"
             preTextFaded={isAnim && anim!.phase === 'check-white'}
             showAnimatedTrailing
             animPhase={isAnim ? anim!.phase : undefined}
             animCheckColor={isAnim ? checkColor : undefined}
-            onClick={() => !isAnim && handleCreate(q)}
+            onClick={() => !isAnim && handleCreate(qRaw)}
           />,
         );
       }
