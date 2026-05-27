@@ -11,6 +11,8 @@ import { useVaultData, useVaultStore } from '../../store/vault.store';
 import { useShallow } from 'zustand/react/shallow';
 import DynamicIcon from '../ui/DynamicIcon';
 import Chip from '../ui/Chip';
+import TertiaryButton from '../ui/TertiaryButton';
+import ActionRow from '../ui/ActionRow';
 import Switch from '../ui/Switch';
 import Input from '../ui/Input';
 import TextArea from '../ui/TextArea';
@@ -487,14 +489,7 @@ function FieldInput({ field, value, onSave, entities = [], schemas = [] }: Field
   }
 
   if (field.type === 'tags') {
-    return (
-      <TagInput
-        fieldKey={field.key}
-        value={value}
-        onSave={(key, val) => onSave(key, val)}
-        entities={entities}
-      />
-    );
+    return null;
   }
 
   if (field.type === 'relation') {
@@ -722,71 +717,83 @@ const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('p
                   {/* Schema fields */}
                   {userFields.map((field) => {
                     const isTag = field.type === 'tags';
-                    const isMultiline = field.type === 'textarea' || isTag;
+                    const isMultiline = field.type === 'textarea';
                     const tagList = isTag ? parseTags(field.value) : [];
                     return (
-                      <PropertyRow
-                        key={`${entity.id}-${field.key}`}
-                        icon={getFieldIcon(field.type)}
-                        label={field.label}
-                        multiline={isMultiline}
-                        footer={isTag && tagList.length > 0 ? (
-                          <div className={styles.tagPillsRow}>
-                            {tagList.map((tag) => (
-                              <Chip
-                                key={tag}
-                                label={tag}
-                                leadingIcon={<Tag size={12} />}
-                                onRemove={() => handleFieldSave(field.key, tagList.filter((t) => t !== tag))}
-                              />
-                            ))}
-                          </div>
-                        ) : undefined}
-                      >
-                        <FieldInput
-                          field={field}
-                          value={field.value}
-                          onSave={handleFieldSave}
-                          entities={entities}
-                          schemas={schemas}
-                        />
-                      </PropertyRow>
+                      <React.Fragment key={`${entity.id}-${field.key}`}>
+                        <PropertyRow
+                          icon={getFieldIcon(field.type)}
+                          label={field.label}
+                          multiline={isMultiline}
+                          footer={isTag && tagList.length > 0 ? (
+                            <div className={styles.tagPillsRow}>
+                              {tagList.map((tag) => (
+                                <Chip
+                                  key={tag}
+                                  label={tag}
+                                  leadingIcon={<Tag size={12} />}
+                                  onRemove={() => handleFieldSave(field.key, tagList.filter((t) => t !== tag))}
+                                />
+                              ))}
+                            </div>
+                          ) : undefined}
+                        >
+                          <FieldInput
+                            field={field}
+                            value={field.value}
+                            onSave={handleFieldSave}
+                            entities={entities}
+                            schemas={schemas}
+                          />
+                        </PropertyRow>
+                        {isTag && (
+                          <ActionRow>
+                            <TertiaryButton icon={<Plus size={12} />} label="Add tag" />
+                          </ActionRow>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                   {/* Custom per-entity fields */}
                   {customFields.map((cf) => {
                     const isTag = cf.type === 'tags';
-                    const isMultiline = cf.type === 'textarea' || isTag;
+                    const isMultiline = cf.type === 'textarea';
                     const cfValue = entity.frontmatter[cf.key];
                     const tagList = isTag ? parseTags(cfValue) : [];
                     return (
-                      <PropertyRow
-                        key={`${entity.id}-custom-${cf.key}`}
-                        icon={getFieldIcon(cf.type)}
-                        label={cf.label}
-                        multiline={isMultiline}
-                        onDelete={() => handleRemoveCustomProp(cf.key)}
-                        footer={isTag && tagList.length > 0 ? (
-                          <div className={styles.tagPillsRow}>
-                            {tagList.map((tag) => (
-                              <Chip
-                                key={tag}
-                                label={tag}
-                                leadingIcon={<Tag size={12} />}
-                                onRemove={() => handleFieldSave(cf.key, tagList.filter((t) => t !== tag))}
-                              />
-                            ))}
-                          </div>
-                        ) : undefined}
-                      >
-                        <FieldInput
-                          field={cf as FieldDefinition}
-                          value={cfValue}
-                          onSave={handleFieldSave}
-                          entities={entities}
-                          schemas={schemas}
-                        />
-                      </PropertyRow>
+                      <React.Fragment key={`${entity.id}-custom-${cf.key}`}>
+                        <PropertyRow
+                          icon={getFieldIcon(cf.type)}
+                          label={cf.label}
+                          multiline={isMultiline}
+                          onDelete={() => handleRemoveCustomProp(cf.key)}
+                          footer={isTag && tagList.length > 0 ? (
+                            <div className={styles.tagPillsRow}>
+                              {tagList.map((tag) => (
+                                <Chip
+                                  key={tag}
+                                  label={tag}
+                                  leadingIcon={<Tag size={12} />}
+                                  onRemove={() => handleFieldSave(cf.key, tagList.filter((t) => t !== tag))}
+                                />
+                              ))}
+                            </div>
+                          ) : undefined}
+                        >
+                          <FieldInput
+                            field={cf as FieldDefinition}
+                            value={cfValue}
+                            onSave={handleFieldSave}
+                            entities={entities}
+                            schemas={schemas}
+                          />
+                        </PropertyRow>
+                        {isTag && (
+                          <ActionRow>
+                            <TertiaryButton icon={<Plus size={12} />} label="Add tag" />
+                          </ActionRow>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                   {/* Add property form */}

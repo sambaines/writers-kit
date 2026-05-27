@@ -1,0 +1,6 @@
+.root {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 4px 16px;
+}
