@@ -10,8 +10,27 @@
   font-weight: var(--weight-normal);
 }
 
+.iconLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.labelText {
+  font-size: inherit;
+  color: inherit;
+  white-space: nowrap;
+  position: relative;
+  top: 1px;
+}
+
 .value {
   font-size: var(--text-sm);
   color: var(--color-paperwhite-50);
   white-space: nowrap;
+  line-height: 16px;
+  position: relative;
+  top: 1px;
 }
