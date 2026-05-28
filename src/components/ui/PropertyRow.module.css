@@ -5,45 +5,8 @@
   flex-direction: column;
   padding: 0 16px 0 14px;
   width: 100%;
-  position: relative;
 }
 
-/* ─── Drag handle ───────────────────────────────────────── */
-
-.dragHandle {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
-  cursor: grab;
-  border: none;
-  background: transparent;
-  padding: 0;
-  color: var(--color-grey-500);
-  z-index: 1;
-}
-
-.root:hover .dragHandle {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.dragHandle:active {
-  cursor: grabbing;
-}
-
-.multiline .dragHandle {
-  top: 8px;
-  transform: none;
-}
 
 .row {
   display: flex;

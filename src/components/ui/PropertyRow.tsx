@@ -1,4 +1,4 @@
-import { X, DotsSixVertical } from '@phosphor-icons/react';
+import { X } from '@phosphor-icons/react';
 import IconWrapper from './IconWrapper';
 import styles from './PropertyRow.module.css';
 
@@ -9,26 +9,13 @@ interface PropertyRowProps {
   onDelete?: () => void;
   multiline?: boolean;
   className?: string;
-  onDragHandlePointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void;
 }
 
-export default function PropertyRow({ icon, label, children, onDelete, multiline, className, onDragHandlePointerDown }: PropertyRowProps) {
+export default function PropertyRow({ icon, label, children, onDelete, multiline, className }: PropertyRowProps) {
   return (
     <div
       className={`${styles.root}${multiline ? ` ${styles.multiline}` : ''}${className ? ` ${className}` : ''}`}
     >
-      {onDragHandlePointerDown && (
-        <button
-          className={styles.dragHandle}
-          onPointerDown={onDragHandlePointerDown}
-          aria-label="Drag to reorder"
-          tabIndex={-1}
-        >
-          <IconWrapper size={24}>
-            <DotsSixVertical size={16} />
-          </IconWrapper>
-        </button>
-      )}
       <div className={styles.row}>
         <span className={styles.label}>
           <IconWrapper>{icon}</IconWrapper>
