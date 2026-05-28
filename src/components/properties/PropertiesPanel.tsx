@@ -564,9 +564,7 @@ const CUSTOM_PROP_TYPES = [
   { value: 'date',              label: 'Date' },
   { value: 'custom-date',       label: 'Custom Date' },
   { value: 'custom-date-range', label: 'Custom Date Range' },
-  { value: 'tags',              label: 'Tags' },
   { value: 'select',            label: 'Select' },
-  { value: 'relation',          label: 'Relation' },
 ];
 
 function toKey(label: string): string {
