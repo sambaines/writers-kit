@@ -24,6 +24,7 @@ import TextArea from '../ui/TextArea';
 import PanelHeader from '../ui/PanelHeader';
 import SubHeader from '../ui/SubHeader';
 import PropertyRow from '../ui/PropertyRow';
+import Button from '../ui/Button';
 import StatRow from '../ui/StatRow';
 import RelationPickerDialog from '../relations/RelationPickerDialog';
 import EntityHistory from './EntityHistory';
@@ -1103,14 +1104,14 @@ export default function PropertiesPanel() {
                       </div>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      className={styles.addPropBtn}
-                      onClick={() => setAddingProp(true)}
-                    >
-                      <Plus size={11} />
-                      <span>Add property</span>
-                    </button>
+                    <div className={styles.addPropRow}>
+                      <Button
+                        leadingIcon={<Plus size={11} />}
+                        onClick={() => setAddingProp(true)}
+                      >
+                        Add property
+                      </Button>
+                    </div>
                   )}
                 </div>}
               </section>

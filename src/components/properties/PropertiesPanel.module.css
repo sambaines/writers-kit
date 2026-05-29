@@ -191,6 +191,7 @@
 /* ─── Sections ──────────────────────────────────────────── */
 .section {
   border-bottom: 1px solid var(--color-grey-850);
+  padding-bottom: 12px;
 }
 
 .sectionToggle {
@@ -782,6 +783,14 @@
 }
 
 /* ─── Add property button + form ────────────────────────── */
+.addPropRow {
+  padding: 8px 14px 0;
+}
+
+.addPropRow > * {
+  width: 100%;
+}
+
 .addPropBtn {
   display: flex;
   align-items: center;
