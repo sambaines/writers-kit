@@ -894,7 +894,7 @@ export default function PropertiesPanel() {
               {/* Properties: type + schema-defined fields */}
               <section className={styles.section}>
                 <SubHeader title="Properties" open={propsOpen} onToggle={() => toggleSection('pp-props', setPropsOpen)} />
-                {propsOpen && <div className={styles.fields} onMouseMove={onFieldsMouseMove} onMouseLeave={onFieldsMouseLeave}>
+                {propsOpen && <div className={styles.panelOptions}><div className={styles.fields} onMouseMove={onFieldsMouseMove} onMouseLeave={onFieldsMouseLeave}>
                   {/* Type row */}
                   <PropertyRow icon={<CirclesFour size={12} />} label="Type">
                     <Popover.Root
@@ -1114,13 +1114,13 @@ export default function PropertiesPanel() {
                       </Button>
                     </div>
                   )}
-                </div>}
+                </div></div>}
               </section>
 
               {/* Relations */}
               <section className={styles.section}>
                 <SubHeader title="Relations" open={relationsOpen} onToggle={() => toggleSection('pp-relations', setRelationsOpen)} />
-                {relationsOpen && <div className={styles.relations}>
+                {relationsOpen && <div className={styles.panelOptions}><div className={styles.relations}>
                   {/* Preset (schema-level / type-bound) relations — shown first */}
                   {presetRelations.map((pr, i) => {
                     const currentId = getPresetValue(pr);
@@ -1243,19 +1243,21 @@ export default function PropertiesPanel() {
                       Add Relation
                     </Button>
                   </div>
-                </div>}
+                </div></div>}
               </section>
 
               {/* Stats */}
               <section className={styles.section}>
                 <SubHeader title="Stats" open={statsOpen} onToggle={() => toggleSection('pp-stats', setStatsOpen)} />
                 {statsOpen && (
-                  <div className={styles.stats}>
-                    <StatRow icon={<BookOpenText size={12} />} label="Words" value={entity.wordCount.toLocaleString()} />
-                    <StatRow icon={<HardDrives size={12} />} label="File Size" value={formatFileSize(entity.fileSize)} />
-                    <StatRow icon={<Books size={12} />} label="Read Time" value={`~${Math.max(1, Math.round(entity.wordCount / 200))} mins`} />
-                    <StatRow icon={<Clock size={12} />} label="Created at" value={formatDate(entity.createdAt)} />
-                    <StatRow icon={<ClockUser size={12} />} label="Modified at" value={relativeTime(entity.modifiedAt)} />
+                  <div className={styles.panelOptions}>
+                    <div className={styles.stats}>
+                      <StatRow icon={<BookOpenText size={12} />} label="Words" value={entity.wordCount.toLocaleString()} />
+                      <StatRow icon={<HardDrives size={12} />} label="File Size" value={formatFileSize(entity.fileSize)} />
+                      <StatRow icon={<Books size={12} />} label="Read Time" value={`~${Math.max(1, Math.round(entity.wordCount / 200))} mins`} />
+                      <StatRow icon={<Clock size={12} />} label="Created at" value={formatDate(entity.createdAt)} />
+                      <StatRow icon={<ClockUser size={12} />} label="Modified at" value={relativeTime(entity.modifiedAt)} />
+                    </div>
                   </div>
                 )}
               </section>

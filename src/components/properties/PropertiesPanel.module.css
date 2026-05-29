@@ -191,6 +191,9 @@
 /* ─── Sections ──────────────────────────────────────────── */
 .section {
   border-bottom: 1px solid var(--color-grey-850);
+}
+
+.panelOptions {
   padding-bottom: 12px;
 }
 
@@ -494,7 +497,6 @@
 .stats {
   display: flex;
   flex-direction: column;
-  padding-bottom: 12px;
 }
 
 /* ─── Empty state ───────────────────────────────────────── */
