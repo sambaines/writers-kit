@@ -47,6 +47,9 @@ export default function SelectWrapper({
   const listboxId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [internalQuery, setInternalQuery] = useState('');
+  const isControlled = onSearchChange !== undefined;
+  const effectiveQuery = isControlled ? searchValue : internalQuery;
 
   // After every render: assign IDs and sync data-keyboard-active on options
   useEffect(() => {
@@ -82,14 +85,18 @@ export default function SelectWrapper({
 
   function handleSearchChange(value: string) {
     setActiveIndex(-1);
-    onSearchChange?.(value);
+    if (isControlled) {
+      onSearchChange!(value);
+    } else {
+      setInternalQuery(value);
+    }
   }
 
-  // When using items prop, filter internally by searchValue
+  // When using items prop, filter internally by effectiveQuery
   const filteredItems = useMemo(() => {
     if (!items) return [];
-    if (!searchValue.trim()) return items;
-    const q = searchValue.toLowerCase();
+    if (!effectiveQuery.trim()) return items;
+    const q = effectiveQuery.toLowerCase();
     const result: SelectItem[] = [];
     let pending: SelectItem[] = [];
     for (const item of items) {
@@ -103,7 +110,7 @@ export default function SelectWrapper({
       }
     }
     return result;
-  }, [items, searchValue]);
+  }, [items, effectiveQuery]);
 
   return (
     <div className={styles.root} onKeyDown={handleKeyDown}>
@@ -111,7 +118,7 @@ export default function SelectWrapper({
         <div className={styles.searchContainer}>
           <Input
             leadingIcon={<MagnifyingGlass size={12} />}
-            value={searchValue}
+            value={effectiveQuery}
             placeholder={searchPlaceholder}
             onChange={(e) => handleSearchChange(e.target.value)}
             autoFocus
@@ -127,7 +134,7 @@ export default function SelectWrapper({
             aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
           >
             {children ?? (
-              filteredItems.length === 0 && searchValue.trim()
+              filteredItems.length === 0 && effectiveQuery.trim()
                 ? (
                   <div className={styles.emptyState}>
                     <CirclesFour size={12} className={styles.emptyStateIcon} />

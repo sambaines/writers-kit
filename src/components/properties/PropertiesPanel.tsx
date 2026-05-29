@@ -601,6 +601,7 @@ export default function PropertiesPanel() {
   const [propsOpen, setPropsOpen]         = useState(() => localStorage.getItem('pp-props') !== 'false');
   const [relationsOpen, setRelationsOpen] = useState(() => localStorage.getItem('pp-relations') !== 'false');
   const [statsOpen, setStatsOpen]         = useState(() => localStorage.getItem('pp-stats') !== 'false');
+  const [presetRelOpen, setPresetRelOpen] = useState(-1);
 
   // ── Drag state ──────────────────────────────────────────
   const [draggingKey, _setDraggingKey] = useState<string | null>(null);
@@ -1120,7 +1121,7 @@ export default function PropertiesPanel() {
               <section className={styles.section}>
                 <SubHeader title="Relations" open={relationsOpen} onToggle={() => toggleSection('pp-relations', setRelationsOpen)} />
                 {relationsOpen && <div className={styles.relations}>
-                  {/* Preset (schema-level) relations — shown first */}
+                  {/* Preset (schema-level / type-bound) relations — shown first */}
                   {presetRelations.map((pr, i) => {
                     const currentId = getPresetValue(pr);
                     const candidates = entities.filter((e) => e.type === pr.targetType && !e.archived);
@@ -1129,50 +1130,64 @@ export default function PropertiesPanel() {
                     const cIcon  = current?.icon ?? cSchema?.icon ?? 'File';
                     const cColor = current?.color ?? cSchema?.color ?? 'var(--text-tertiary)';
                     return (
-                      <div key={i} className={styles.presetRelGroup}>
-                        <div className={styles.presetRelLabel}>{pr.label}</div>
-                        <Select.Root
-                          value={currentId || '__none__'}
-                          onValueChange={(v) => handlePresetChange(pr, v === '__none__' ? '' : v)}
+                      <div key={`preset-${pr.targetType}-${i}`} className={styles.presetRelSlot} style={{ paddingTop: i === 0 ? 4 : 8 }}>
+                        <div className={styles.presetRelHeading}>
+                          <span className={styles.presetRelBelongsTo}>Belongs to</span>
+                          <span className={styles.presetRelTypeName}>{pr.targetType}</span>
+                        </div>
+                        <Popover.Root
+                          open={presetRelOpen === i}
+                          onOpenChange={(o) => setPresetRelOpen(o ? i : -1)}
                         >
-                          <Select.Trigger asChild>
-                            <button className={styles.presetRelTrigger}>
+                          <div className={styles.presetRelInput}>
+                            <div className={styles.presetRelInputRing} />
+                            <Popover.Trigger className={styles.presetRelInputBtn}>
                               {current ? (
                                 <>
-                                  <DynamicIcon name={cIcon} size={11} color={cColor} weight="duotone" />
-                                  <span className={styles.presetRelTriggerText}>{current.title}</span>
+                                  <DynamicIcon name={cIcon} size={12} color={cColor} weight="duotone" />
+                                  <span className={styles.presetRelInputText}>{current.title}</span>
                                 </>
                               ) : (
-                                <span className={styles.presetRelPlaceholder}>Select {pr.targetType}…</span>
+                                <span className={styles.presetRelInputPlaceholder}>Select {pr.targetType}…</span>
                               )}
-                              <CaretUpDown size={10} className={styles.presetRelCaret} />
-                            </button>
-                          </Select.Trigger>
-                          <Select.Portal>
-                            <Select.Content className={styles.presetRelContent} position="popper" sideOffset={4}>
-                              <Select.Viewport>
-                                <Select.Item value="__none__" className={styles.presetRelItem}>
-                                  <Select.ItemText>None</Select.ItemText>
-                                </Select.Item>
-                                {candidates.map((e) => {
-                                  const eSchema = schemas.find((s) => s.name === e.type);
-                                  const eIcon  = e.icon ?? eSchema?.icon ?? 'File';
-                                  const eColor = e.color ?? eSchema?.color ?? 'var(--text-tertiary)';
-                                  return (
-                                    <Select.Item key={e.id} value={e.id} className={styles.presetRelItem}>
-                                      <Select.ItemText>
-                                        <span className={styles.presetRelItemInner}>
-                                          <DynamicIcon name={eIcon} size={11} color={eColor} weight="duotone" />
-                                          {e.title}
-                                        </span>
-                                      </Select.ItemText>
-                                    </Select.Item>
-                                  );
-                                })}
-                              </Select.Viewport>
-                            </Select.Content>
-                          </Select.Portal>
-                        </Select.Root>
+                              <CaretUpDown size={12} className={styles.presetRelInputCaret} />
+                            </Popover.Trigger>
+                          </div>
+                          <Popover.Portal>
+                            <Popover.Content
+                              className={styles.presetRelPopover}
+                              side="bottom"
+                              sideOffset={4}
+                              align="start"
+                              avoidCollisions={false}
+                            >
+                              <SelectWrapper
+                                showSearch
+                                searchPlaceholder={`Search ${pr.targetType}s…`}
+                                items={[
+                                  {
+                                    type: 'option' as const,
+                                    label: 'None',
+                                    selected: !currentId,
+                                    onClick: () => { handlePresetChange(pr, ''); setPresetRelOpen(-1); },
+                                  },
+                                  ...candidates.map((e) => {
+                                    const eSchema = schemas.find((s) => s.name === e.type);
+                                    const eIcon  = e.icon ?? eSchema?.icon ?? 'File';
+                                    const eColor = e.color ?? eSchema?.color ?? 'var(--text-tertiary)';
+                                    return {
+                                      type: 'option' as const,
+                                      label: e.title,
+                                      icon: <DynamicIcon name={eIcon} size={12} color={eColor} weight="duotone" />,
+                                      selected: e.id === currentId,
+                                      onClick: () => { handlePresetChange(pr, e.id); setPresetRelOpen(-1); },
+                                    };
+                                  }),
+                                ]}
+                              />
+                            </Popover.Content>
+                          </Popover.Portal>
+                        </Popover.Root>
                       </div>
                     );
                   })}
@@ -1223,10 +1238,11 @@ export default function PropertiesPanel() {
                       </div>
                     );
                   })}
-                  <button className={styles.addRelation} onClick={() => setPickerOpen(true)}>
-                    <Plus size={12} />
-                    <span>Add relation</span>
-                  </button>
+                  <div className={styles.addRelationRow}>
+                    <Button leadingIcon={<Plus size={11} />} onClick={() => setPickerOpen(true)}>
+                      Add Relation
+                    </Button>
+                  </div>
                 </div>}
               </section>
 
