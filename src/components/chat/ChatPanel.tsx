@@ -16,7 +16,7 @@ function ApiKeySetup() {
 
   return (
     <div className={styles.keySetup}>
-      <Key size={28} weight="duotone" color="var(--accent-text)" />
+      <Key size={28} color="var(--accent-text)" />
       <p className={styles.keyTitle}>Anthropic API key required</p>
       <p className={styles.keyHint}>
         Your key is stored locally in <code>.writerkit/settings.json</code> and never committed to git.
@@ -101,7 +101,7 @@ export default function ChatPanel() {
       {/* Header */}
       <div className={styles.header}>
         <span className={styles.title}>
-          <Brain size={14} weight="duotone" color="var(--accent-text)" />
+          <Brain size={14} color="var(--accent-text)" />
           Claude
         </span>
         <div className={styles.headerActions}>

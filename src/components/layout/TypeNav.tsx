@@ -114,7 +114,7 @@ export default function TypeNav() {
       <nav className={styles.nav}>
         {/* Logo */}
         <div className={styles.logo}>
-          <Feather size={18} weight="duotone" color="var(--accent)" />
+          <Feather size={18} color="var(--accent)" />
           <span className={styles.logoText}>Writers Kit</span>
         </div>
 

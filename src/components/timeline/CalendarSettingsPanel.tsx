@@ -183,7 +183,7 @@ export default function CalendarSettingsPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <CalendarBlank size={14} weight="duotone" color="var(--accent)" />
+        <CalendarBlank size={14} color="var(--accent)" />
         <span className={styles.headerTitle}>Calendar</span>
         {saveStatus !== 'idle' && (
           <span className={styles.saveStatus}>

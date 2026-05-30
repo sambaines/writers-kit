@@ -148,7 +148,7 @@ export default function RelationPickerDialog({
                           className={styles.entityRow}
                           onClick={() => handleSelect(entity.id)}
                         >
-                          <DynamicIcon name={eIcon} size={13} color={eColor} weight="duotone" />
+                          <DynamicIcon name={eIcon} size={13} color={eColor} />
                           <span className={styles.entityTitle}>{entity.title}</span>
                         </button>
                       );

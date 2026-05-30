@@ -27,6 +27,8 @@
 }
 
 .label {
+  position: static;
+  top: auto;
   font-size: inherit;
   font-weight: inherit;
   color: inherit;

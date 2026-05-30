@@ -133,7 +133,7 @@ export default function CommandPalette() {
                   onMouseEnter={() => setActiveIndex(i)}
                 >
                   <span className={styles.resultIcon}>
-                    <DynamicIcon name={icon} size={14} color={color} weight="duotone" />
+                    <DynamicIcon name={icon} size={14} color={color} />
                   </span>
                   <span className={styles.resultBody}>
                     <span className={styles.resultTitle}>{result.title}</span>

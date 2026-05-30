@@ -4,7 +4,7 @@ import * as Select from '@radix-ui/react-select';
 import * as Popover from '@radix-ui/react-popover';
 import {
   X, HashStraight, Calendar, CalendarDots, CalendarX, Tag, Textbox, ToggleLeft, CirclesFour,
-  ArrowUpRight, Plus, BookOpenText, HardDrives, Books, Clock, ClockUser,
+  ArrowSquareOut, Plus, BookOpenText, HardDrives, Books, Clock, ClockUser,
   FileText, CaretUpDown, CaretDown, DotsSixVertical,
 } from '@phosphor-icons/react';
 import IconWrapper from '../ui/IconWrapper';
@@ -1144,7 +1144,7 @@ export default function PropertiesPanel() {
                             <Popover.Trigger className={styles.presetRelInputBtn}>
                               {current ? (
                                 <>
-                                  <DynamicIcon name={cIcon} size={12} color={cColor} weight="duotone" />
+                                  <DynamicIcon name={cIcon} size={12} color={cColor} />
                                   <span className={styles.presetRelInputText}>{current.title}</span>
                                 </>
                               ) : (
@@ -1178,7 +1178,7 @@ export default function PropertiesPanel() {
                                     return {
                                       type: 'option' as const,
                                       label: e.title,
-                                      icon: <DynamicIcon name={eIcon} size={12} color={eColor} weight="duotone" />,
+                                      icon: <DynamicIcon name={eIcon} size={12} color={eColor} />,
                                       selected: e.id === currentId,
                                       onClick: () => { handlePresetChange(pr, e.id); setPresetRelOpen(-1); },
                                     };
@@ -1192,57 +1192,86 @@ export default function PropertiesPanel() {
                     );
                   })}
 
-                  {/* Divider if both preset and freeform relations exist */}
-                  {presetRelations.length > 0 && existingTargetIds.some((id) => !presetCoveredIds.has(id)) && (
-                    <div className={styles.relDivider} />
-                  )}
-
-                  {/* Freeform relations (excluding preset-covered IDs) */}
-                  {existingTargetIds.filter((id) => !presetCoveredIds.has(id)).length === 0 &&
-                    presetRelations.length === 0 && (
-                      <span className={styles.emptyHint}>No relations yet</span>
-                    )}
-                  {RELATION_GROUPS.map(({ kind, label, key }) => {
-                    const ids = ((entity.frontmatter[key] as string[] | undefined) ?? [])
-                      .filter((id) => !presetCoveredIds.has(id));
-                    if (ids.length === 0) return null;
-                    return (
-                      <div key={kind} className={styles.relGroup}>
-                        <div className={styles.relGroupLabel}>{label}</div>
-                        {ids.map((targetId) => {
-                          const target = entities.find((e) => e.id === targetId);
-                          const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
-                          const tIcon  = target?.icon ?? tSchema?.icon ?? 'File';
-                          const tColor = target?.color ?? tSchema?.color ?? 'var(--text-tertiary)';
-                          return (
-                            <div key={targetId} className={styles.relItem}>
-                              <button
-                                className={styles.relLink}
-                                onClick={() => target && setActiveEntityId(target.id)}
-                                title={target ? `Open ${target.title}` : targetId}
-                              >
-                                <DynamicIcon name={tIcon} size={11} color={tColor} weight="duotone" />
-                                <span>{target?.title ?? targetId}</span>
-                                {target && <ArrowUpRight size={10} className={styles.relArrow} />}
-                              </button>
-                              <button
-                                className={styles.relRemoveBtn}
-                                onClick={() => handleRemoveRelation(targetId, kind)}
-                                aria-label="Remove relation"
-                              >
-                                <X size={10} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
+                  {/* Freeform relation groups */}
+                  {(() => {
+                    const hasFreeformRelations = RELATION_GROUPS.some(({ key }) =>
+                      ((entity.frontmatter[key] as string[] | undefined) ?? [])
+                        .filter((id) => !presetCoveredIds.has(id)).length > 0
                     );
-                  })}
-                  <div className={styles.addRelationRow}>
-                    <Button leadingIcon={<Plus size={11} />} onClick={() => setPickerOpen(true)}>
-                      Add Relation
-                    </Button>
-                  </div>
+                    const allGroupsFilled = RELATION_GROUPS.every(({ key }) =>
+                      ((entity.frontmatter[key] as string[] | undefined) ?? [])
+                        .filter((id) => !presetCoveredIds.has(id)).length > 0
+                    );
+                    return (
+                      <>
+                        {hasFreeformRelations ? (
+                          RELATION_GROUPS.map(({ kind, label, key }) => {
+                            const ids = ((entity.frontmatter[key] as string[] | undefined) ?? [])
+                              .filter((id) => !presetCoveredIds.has(id));
+                            if (ids.length === 0) return null;
+                            return (
+                              <div key={kind} className={styles.relGroup}>
+                                <div className={styles.relGroupHeader}>
+                                  <span className={styles.relGroupName}>{label}</span>
+                                  <button
+                                    className={styles.relGroupAddBtn}
+                                    aria-label={`Add ${label} relation`}
+                                  >
+                                    <IconWrapper size={16}>
+                                      <Plus size={12} />
+                                    </IconWrapper>
+                                  </button>
+                                </div>
+                                {ids.map((targetId) => {
+                                  const target = entities.find((e) => e.id === targetId);
+                                  const tSchema = target ? schemas.find((s) => s.name === target.type) : null;
+                                  const tIcon  = target?.icon ?? tSchema?.icon ?? 'File';
+                                  const tColor = target?.color ?? tSchema?.color ?? '#888888';
+                                  const lightColor = `color-mix(in srgb, ${tColor} 65%, #ffffff)`;
+                                  return (
+                                    <div key={targetId} className={styles.relEntityRow}>
+                                      <Chip
+                                        label={target?.title ?? targetId}
+                                        leadingIcon={<DynamicIcon name={tIcon} size={11} color={lightColor} />}
+                                        color={lightColor}
+                                        backgroundColor="transparent"
+                                        className={styles.relChip}
+                                      />
+                                      <button
+                                        className={styles.relChipNavBtn}
+                                        onClick={() => target && setActiveEntityId(target.id)}
+                                        aria-label={target ? `Open ${target.title}` : undefined}
+                                      >
+                                        <ArrowSquareOut size={12} />
+                                      </button>
+                                      <div className={styles.relEntityActions}>
+                                        <button
+                                          className={styles.relChipRemoveBtn}
+                                          onClick={() => handleRemoveRelation(targetId, kind)}
+                                          aria-label="Remove relation"
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className={styles.relEmptyText}>No relations added to this entity yet</p>
+                        )}
+                        {!allGroupsFilled && (
+                          <div className={styles.addRelationRow}>
+                            <Button leadingIcon={<Plus size={11} />} onClick={() => setPickerOpen(true)}>
+                              Add Relation
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div></div>}
               </section>
 

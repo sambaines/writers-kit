@@ -119,7 +119,7 @@ export default function TimelineFilterPanel() {
                     name={schema.icon}
                     size={13}
                     color={schema.color}
-                    weight="duotone"
+                   
                   />
                 )}
                 <span className={styles.groupName}>{pluralize(typeName)}</span>

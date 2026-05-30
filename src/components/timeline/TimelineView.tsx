@@ -492,7 +492,7 @@ export default function TimelineView() {
                     style={{ left: labelLeft }}
                     onClick={() => handleItemClick(item.entityId)}
                   >
-                    <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} weight="duotone" />
+                    <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} />
                     <span style={{ color: item.entityColor }}>{item.entityTitle}</span>
                     <span className={styles.itemYear}>{getItemLabel(item)}</span>
                   </button>
@@ -512,7 +512,7 @@ export default function TimelineView() {
                   style={{ position: 'relative', left: 'unset', transform: 'none' }}
                   onClick={() => handleItemClick(item.entityId)}
                 >
-                  <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} weight="duotone" />
+                  <DynamicIcon name={item.entityIcon} size={12} color={item.entityColor} />
                   <span>{item.entityTitle}</span>
                   {item.fieldLabel && <span className={styles.fieldTag}>· {item.fieldLabel}</span>}
                   <span className={styles.itemYear}>{getItemLabel(item)}</span>

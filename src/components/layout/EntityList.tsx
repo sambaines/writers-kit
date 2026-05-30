@@ -238,7 +238,7 @@ export default function EntityList() {
     <div className={styles.list}>
       {/* Header */}
       <div className={styles.header}>
-        <DynamicIcon name={icon} size={14} color={color} weight="duotone" />
+        <DynamicIcon name={icon} size={14} color={color} />
         <span className={styles.headerLabel}>{label}</span>
         {/* Column picker */}
         {(isGlobalView || schemaFields.length > 0 || entityCustomFields.length > 0) && (

@@ -6,6 +6,7 @@
   gap: 4px;
   max-width: 100%;
   padding: 2px 2px;
+  border: none;
   border-radius: 4px;
   background-color: var(--color-grey-850);
   color: var(--color-paperwhite-50);

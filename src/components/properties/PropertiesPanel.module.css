@@ -399,99 +399,108 @@
 
 /* ─── Relation groups (grouped by kind) ─────────────────── */
 .relGroup {
-  margin-bottom: 8px;
 }
 
-.relGroupLabel {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+.relGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 2px 4px 0;
+}
+
+.relGroupName {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-grey-400);
   font-weight: var(--weight-medium);
-  padding: 2px 0 3px 2px;
   user-select: none;
 }
 
-.relItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  border-radius: var(--radius-sm);
-  padding: 1px 0;
+.relGroupAddBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-grey-300);
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
-.relItem:hover .relRemoveBtn {
+.relGroupAddBtn:hover {
+  color: var(--text-primary);
+}
+
+.relChip {
+  padding: 2px 8px 2px 4px !important;
+  border: none !important;
+  border-radius: 4px !important;
+  transition: background-color var(--transition-fast);
+}
+
+.relEntityRow:hover .relChip {
+  background-color: var(--color-grey-850) !important;
+}
+
+.relEntityRow {
+  display: flex;
+  align-items: center;
+  height: 28px;
+}
+
+.relEntityActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.relChipNavBtn,
+.relChipRemoveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.relChipNavBtn {
+  color: var(--color-grey-400);
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 200ms ease, opacity 200ms ease;
+}
+
+.relChipRemoveBtn {
+  color: var(--text-tertiary);
+}
+
+.relEntityRow:hover .relChipNavBtn {
+  max-width: 20px;
   opacity: 1;
 }
 
-.relLink {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 3px 5px;
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
-  text-align: left;
-}
-
-.relLink:hover {
-  background: var(--accent-subtle);
-  color: var(--accent-text);
-}
-
-.relLink span {
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.4;
-}
-
-.relArrow {
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-}
-
-.relRemoveBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  background: transparent;
-  border: none;
-  border-radius: 3px;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  opacity: 0;
-  flex-shrink: 0;
-  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
-}
-
-.relRemoveBtn:hover {
+.relChipRemoveBtn:hover {
   background: rgba(255, 83, 112, 0.12);
   color: var(--color-error);
 }
 
-.addRelation {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  padding: 4px 5px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  margin-top: 2px;
-  transition: background var(--transition-fast), color var(--transition-fast);
+.relEmptyText {
+  font-size: 12px;
+  color: var(--color-grey-400);
+  margin: 4px 0 8px;
+  line-height: 1.4;
 }
 
-.addRelation:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-}
 
 /* ─── Stats ─────────────────────────────────────────────── */
 .stats {

@@ -74,7 +74,7 @@ export default function AskDrawer() {
         {/* Header */}
         <div className={styles.header}>
           <span className={styles.title}>
-            <Brain size={14} weight="duotone" color="var(--accent-text)" />
+            <Brain size={14} color="var(--accent-text)" />
             Quick Ask
           </span>
           <button className={styles.closeBtn} onClick={() => setAskDrawerOpen(false)} aria-label="Close">

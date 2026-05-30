@@ -69,7 +69,7 @@ export default function NewTypeDialog({ open, onClose }: NewTypeDialogProps) {
             {/* Preview */}
             <div className={styles.preview}>
               <div className={styles.previewIcon} style={{ background: `${color}20` }}>
-                <DynamicIcon name={icon} size={22} weight="duotone" color={color} />
+                <DynamicIcon name={icon} size={22} color={color} />
               </div>
               <span className={styles.previewName} style={{ color }}>
                 {name || 'New Type'}

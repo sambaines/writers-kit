@@ -27,7 +27,7 @@ export default function VaultOpener() {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <Feather size={36} weight="duotone" color="var(--accent)" />
+          <Feather size={36} color="var(--accent)" />
         </div>
 
         <h1 className={styles.title}>Writers Kit</h1>
@@ -44,7 +44,7 @@ export default function VaultOpener() {
             </>
           ) : (
             <>
-              <FolderOpen size={16} weight="duotone" />
+              <FolderOpen size={16} />
               <span>Open Vault Folder</span>
             </>
           )}
