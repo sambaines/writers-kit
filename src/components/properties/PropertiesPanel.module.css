@@ -494,6 +494,27 @@
   color: var(--color-error);
 }
 
+/* Add-relation inline search */
+.addRelSearchWrap {
+  padding-top: 4px;
+}
+
+.addRelPopover {
+  width: var(--radix-popover-trigger-width);
+  z-index: 1000;
+  outline: none;
+  transform-origin: top center;
+  will-change: opacity, transform;
+}
+
+.addRelPopover[data-state="open"] {
+  animation: typeSelectOpen 250ms cubic-bezier(0.2, 1, 0.36, 1);
+}
+
+.addRelPopover[data-state="closed"] {
+  animation: typeSelectClose 150ms ease-out;
+}
+
 .relEmptyText {
   font-size: 12px;
   color: var(--color-grey-400);

@@ -602,6 +602,8 @@ export default function PropertiesPanel() {
   const [relationsOpen, setRelationsOpen] = useState(() => localStorage.getItem('pp-relations') !== 'false');
   const [statsOpen, setStatsOpen]         = useState(() => localStorage.getItem('pp-stats') !== 'false');
   const [presetRelOpen, setPresetRelOpen] = useState(-1);
+  const [addingRelKind, setAddingRelKind] = useState<RelationKind | null>(null);
+  const [addRelQuery, setAddRelQuery]     = useState('');
 
   // ── Drag state ──────────────────────────────────────────
   const [draggingKey, _setDraggingKey] = useState<string | null>(null);
@@ -1202,13 +1204,64 @@ export default function PropertiesPanel() {
                       ((entity.frontmatter[key] as string[] | undefined) ?? [])
                         .filter((id) => !presetCoveredIds.has(id)).length > 0
                     );
+
+                    // All IDs already related to this entity in any way
+                    const allRelatedIds = new Set([
+                      entity.id,
+                      ...Array.from(presetCoveredIds),
+                      ...RELATION_GROUPS.flatMap(({ key }) =>
+                        (entity.frontmatter[key] as string[] | undefined) ?? []
+                      ),
+                    ]);
+
+                    // Candidates for the add-relation picker (filtered by query)
+                    const q = addRelQuery.toLowerCase().trim();
+                    const candidates = entities.filter(
+                      (e) => !e.archived && !allRelatedIds.has(e.id) &&
+                        (!q || e.title.toLowerCase().includes(q))
+                    );
+
+                    // Group candidates by entity type
+                    const byType = new Map<string, typeof entities>();
+                    for (const e of candidates) {
+                      const t = e.type || '__none';
+                      if (!byType.has(t)) byType.set(t, []);
+                      byType.get(t)!.push(e);
+                    }
+
+                    // Build SelectWrapper items with headers + dividers
+                    const addRelItems: SelectItem[] = [];
+                    let firstGroup = true;
+                    for (const [typeName, typeEntities] of byType) {
+                      if (!firstGroup) addRelItems.push({ type: 'divider' });
+                      firstGroup = false;
+                      const pluralLabel = typeName.endsWith('s') ? typeName : `${typeName}s`;
+                      addRelItems.push({ type: 'header', label: pluralLabel });
+                      for (const e of typeEntities) {
+                        const eSchema = schemas.find((s) => s.name === e.type);
+                        const eIcon  = e.icon ?? eSchema?.icon ?? 'File';
+                        const eColor = e.color ?? eSchema?.color ?? 'var(--text-tertiary)';
+                        addRelItems.push({
+                          type: 'option',
+                          label: e.title,
+                          icon: <DynamicIcon name={eIcon} size={12} color={eColor} />,
+                          onClick: () => {
+                            handleAddRelation(e.id, addingRelKind!);
+                            setAddingRelKind(null);
+                            setAddRelQuery('');
+                          },
+                        });
+                      }
+                    }
+
                     return (
                       <>
-                        {hasFreeformRelations ? (
+                        {hasFreeformRelations || addingRelKind ? (
                           RELATION_GROUPS.map(({ kind, label, key }) => {
                             const ids = ((entity.frontmatter[key] as string[] | undefined) ?? [])
                               .filter((id) => !presetCoveredIds.has(id));
-                            if (ids.length === 0) return null;
+                            const isAdding = addingRelKind === kind;
+                            if (ids.length === 0 && !isAdding) return null;
                             return (
                               <div key={kind} className={styles.relGroup}>
                                 <div className={styles.relGroupHeader}>
@@ -1216,6 +1269,7 @@ export default function PropertiesPanel() {
                                   <button
                                     className={styles.relGroupAddBtn}
                                     aria-label={`Add ${label} relation`}
+                                    onClick={() => { setAddingRelKind(kind); setAddRelQuery(''); }}
                                   >
                                     <IconWrapper size={16}>
                                       <Plus size={12} />
@@ -1256,13 +1310,49 @@ export default function PropertiesPanel() {
                                     </div>
                                   );
                                 })}
+                                {isAdding && (
+                                  <Popover.Root
+                                    open={true}
+                                    onOpenChange={(o) => { if (!o) { setAddingRelKind(null); setAddRelQuery(''); } }}
+                                  >
+                                    <Popover.Trigger asChild>
+                                      <div className={styles.addRelSearchWrap}>
+                                        <Input
+                                          value={addRelQuery}
+                                          onChange={(e) => setAddRelQuery(e.target.value)}
+                                          placeholder="Search entities…"
+                                          autoFocus
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Escape') { setAddingRelKind(null); setAddRelQuery(''); }
+                                          }}
+                                        />
+                                      </div>
+                                    </Popover.Trigger>
+                                    <Popover.Portal>
+                                      <Popover.Content
+                                        className={styles.addRelPopover}
+                                        side="bottom"
+                                        sideOffset={4}
+                                        align="start"
+                                        avoidCollisions={false}
+                                        onOpenAutoFocus={(e) => e.preventDefault()}
+                                        onInteractOutside={() => { setAddingRelKind(null); setAddRelQuery(''); }}
+                                      >
+                                        <SelectWrapper
+                                          items={addRelItems}
+                                          emptyMessage="No entities match your search"
+                                        />
+                                      </Popover.Content>
+                                    </Popover.Portal>
+                                  </Popover.Root>
+                                )}
                               </div>
                             );
                           })
                         ) : (
                           <p className={styles.relEmptyText}>No relations added to this entity yet</p>
                         )}
-                        {!allGroupsFilled && (
+                        {!allGroupsFilled && !addingRelKind && (
                           <div className={styles.addRelationRow}>
                             <Button leadingIcon={<Plus size={11} />} onClick={() => setPickerOpen(true)}>
                               Add Relation
